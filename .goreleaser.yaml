@@ -1,0 +1,47 @@
+version: 2
+
+project_name: aisk
+
+builds:
+  - main: ./cmd/aisk
+    binary: aisk
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+
+archives:
+  - formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+brews:
+  - repository:
+      owner: yorch
+      name: homebrew-tap
+    directory: Formula
+    homepage: https://github.com/yorch/aisk
+    description: "AI Skill Manager — install coding skills across AI clients"
+    license: MIT
