@@ -4,7 +4,7 @@
 
 `aisk` is a Go CLI/TUI tool that manages AI coding assistant skills across 6 clients. The architecture follows a clean layered design: CLI commands orchestrate skill discovery, client detection, format adaptation, and installation tracking.
 
-```
+```text
 ┌─────────────────────────────────────────────────────┐
 │                   cmd/aisk/main.go                  │
 └──────────────────────┬──────────────────────────────┘
@@ -21,7 +21,7 @@
 
 ## Package Dependency Graph
 
-```
+```text
 cmd/aisk/main.go
     └→ cli.Execute()
 
@@ -56,13 +56,13 @@ internal/config     (no internal deps)
 
 Resolves application paths from the user's home directory and environment.
 
-| Export | Type | Purpose |
-|--------|------|---------|
-| `AppName` | const | `"aisk"` |
-| `AppVersion` | const | `"0.1.0"` |
-| `Paths` | struct | Home, AiskDir, CacheDir, ManifestDB, SkillsRepo |
-| `ResolvePaths()` | func | Resolves paths; `AISK_SKILLS_PATH` overrides SkillsRepo |
-| `Paths.EnsureDirs()` | method | Creates `~/.aisk/` and `~/.aisk/cache/` |
+| Export               | Type   | Purpose                                                 |
+| -------------------- | ------ | ------------------------------------------------------- |
+| `AppName`            | const  | `"aisk"`                                                |
+| `AppVersion`         | const  | `"0.1.0"`                                               |
+| `Paths`              | struct | Home, AiskDir, CacheDir, ManifestDB, SkillsRepo         |
+| `ResolvePaths()`     | func   | Resolves paths; `AISK_SKILLS_PATH` overrides SkillsRepo |
+| `Paths.EnsureDirs()` | method | Creates `~/.aisk/` and `~/.aisk/cache/`                 |
 
 ### `internal/skill`
 
@@ -94,17 +94,18 @@ type Skill struct {
 
 **Functions:**
 
-| Function | Purpose |
-|----------|---------|
-| `ParseFrontmatter(content) → (Frontmatter, body, error)` | Split `---` delimited YAML from markdown body |
-| `Skill.DisplayVersion() → string` | Returns version or `"unversioned"` |
-| `ScanLocal(repoPath) → ([]*Skill, error)` | Scans subdirectories for SKILL.md files |
-| `ReadFullContent(skill, includeRefs) → (string, error)` | Assembles body + optionally inlined reference files |
-| `FetchRemoteList(owner, repo) → ([]*Skill, error)` | Lists skills from a GitHub repo via API |
-| `FetchRemoteSkill(owner, repo, cacheDir) → (*Skill, error)` | Downloads full skill to local cache |
-| `ParseRepoURL(url) → (owner, repo, ok)` | Parses `github.com/owner/repo` format |
+| Function                                                    | Purpose                                             |
+| ----------------------------------------------------------- | --------------------------------------------------- |
+| `ParseFrontmatter(content) → (Frontmatter, body, error)`    | Split `---` delimited YAML from markdown body       |
+| `Skill.DisplayVersion() → string`                           | Returns version or `"unversioned"`                  |
+| `ScanLocal(repoPath) → ([]*Skill, error)`                   | Scans subdirectories for SKILL.md files             |
+| `ReadFullContent(skill, includeRefs) → (string, error)`     | Assembles body + optionally inlined reference files |
+| `FetchRemoteList(owner, repo) → ([]*Skill, error)`          | Lists skills from a GitHub repo via API             |
+| `FetchRemoteSkill(owner, repo, cacheDir) → (*Skill, error)` | Downloads full skill to local cache                 |
+| `ParseRepoURL(url) → (owner, repo, ok)`                     | Parses `github.com/owner/repo` format               |
 
 **Local discovery logic:**
+
 1. Read directory entries in `repoPath`
 2. Skip hidden dirs and `node_modules`
 3. For each subdirectory containing `SKILL.md`: parse frontmatter, discover `reference/` or `references/`, `examples/`, `assets/`
@@ -133,16 +134,17 @@ type Registry struct { clients map[ClientID]*Client }
 
 **Detection strategy** — two signals per client: config directory existence AND binary in PATH.
 
-| Client | Config Dir | Binary | Global Path | Project Path |
-|--------|-----------|--------|-------------|-------------|
-| Claude Code | `~/.claude/` | `claude` | `~/.claude/skills/` | `.claude/skills/` |
-| Gemini CLI | `~/.gemini/` | `gemini` | `~/.gemini/GEMINI.md` | `GEMINI.md` |
-| Codex CLI | `~/.codex/` | `codex` | `~/.codex/instructions.md` | `AGENTS.md` |
-| VS Code Copilot | `~/.vscode/` | `code` | (none) | `.github/copilot-instructions.md` |
-| Cursor | `~/.cursor/` | `cursor` | (none) | `.cursor/rules/` |
-| Windsurf | `~/.codeium/windsurf/` | `windsurf` | `~/.codeium/windsurf/memories/global_rules.md` | `.windsurf/rules/` |
+| Client          | Config Dir             | Binary     | Global Path                                    | Project Path                      |
+| --------------- | ---------------------- | ---------- | ---------------------------------------------- | --------------------------------- |
+| Claude Code     | `~/.claude/`           | `claude`   | `~/.claude/skills/`                            | `.claude/skills/`                 |
+| Gemini CLI      | `~/.gemini/`           | `gemini`   | `~/.gemini/GEMINI.md`                          | `GEMINI.md`                       |
+| Codex CLI       | `~/.codex/`            | `codex`    | `~/.codex/instructions.md`                     | `AGENTS.md`                       |
+| VS Code Copilot | `~/.vscode/`           | `code`     | (none)                                         | `.github/copilot-instructions.md` |
+| Cursor          | `~/.cursor/`           | `cursor`   | (none)                                         | `.cursor/rules/`                  |
+| Windsurf        | `~/.codeium/windsurf/` | `windsurf` | `~/.codeium/windsurf/memories/global_rules.md` | `.windsurf/rules/`                |
 
 **Scope support:**
+
 - **Both global + project**: Claude, Gemini, Codex, Windsurf
 - **Project only**: Copilot, Cursor
 
@@ -170,12 +172,12 @@ type InstallOpts struct {
 
 **Adapter implementations:**
 
-| Adapter | Clients | Method | Idempotent |
-|---------|---------|--------|------------|
-| `ClaudeAdapter` | Claude Code | Symlink (local) or recursive copy (remote) to `skills/{name}/` | Remove + recreate |
-| `MarkdownAdapter` | Gemini, Codex, Copilot | Append consolidated markdown section to target file | Yes — section markers |
-| `CursorAdapter` | Cursor | Write `.mdc` file with Cursor YAML frontmatter | Overwrite |
-| `WindsurfAdapter` | Windsurf | Individual `.md` (project) or section-appended (global) | Partial — markers for global |
+| Adapter           | Clients                | Method                                                         | Idempotent                   |
+| ----------------- | ---------------------- | -------------------------------------------------------------- | ---------------------------- |
+| `ClaudeAdapter`   | Claude Code            | Symlink (local) or recursive copy (remote) to `skills/{name}/` | Remove + recreate            |
+| `MarkdownAdapter` | Gemini, Codex, Copilot | Append consolidated markdown section to target file            | Yes — section markers        |
+| `CursorAdapter`   | Cursor                 | Write `.mdc` file with Cursor YAML frontmatter                 | Overwrite                    |
+| `WindsurfAdapter` | Windsurf               | Individual `.md` (project) or section-appended (global)        | Partial — markers for global |
 
 **Section markers** (used by MarkdownAdapter and WindsurfAdapter global mode):
 
@@ -188,6 +190,7 @@ type InstallOpts struct {
 Re-installing replaces content between markers without duplication. Uninstalling removes the entire section.
 
 **Markdown consolidation algorithm:**
+
 1. `# <skill-name>` header
 2. Description as blockquote
 3. SKILL.md markdown body
@@ -195,6 +198,7 @@ Re-installing replaces content between markers without duplication. Uninstalling
 5. Wrap in section markers
 
 **Cursor `.mdc` format:**
+
 ```yaml
 ---
 description: <truncated first line of skill description>
@@ -228,18 +232,19 @@ type Manifest struct {
 
 **Operations:**
 
-| Method | Purpose |
-|--------|---------|
-| `Load(path)` | Read JSON or return empty manifest |
-| `Save()` | Write to JSON |
-| `Add(inst)` | Upsert — replaces existing entry for same skill+client+scope |
-| `Remove(skill, client, scope)` | Delete single entry |
-| `RemoveAll(skill)` | Delete all entries for a skill |
-| `Find(skill, client)` | Filter by skill name, optionally by client |
-| `FindByClient(client)` | All installations for a client |
-| `AllSkillNames()` | Deduplicated list of installed skill names |
+| Method                         | Purpose                                                      |
+| ------------------------------ | ------------------------------------------------------------ |
+| `Load(path)`                   | Read JSON or return empty manifest                           |
+| `Save()`                       | Write to JSON                                                |
+| `Add(inst)`                    | Upsert — replaces existing entry for same skill+client+scope |
+| `Remove(skill, client, scope)` | Delete single entry                                          |
+| `RemoveAll(skill)`             | Delete all entries for a skill                               |
+| `Find(skill, client)`          | Filter by skill name, optionally by client                   |
+| `FindByClient(client)`         | All installations for a client                               |
+| `AllSkillNames()`              | Deduplicated list of installed skill names                   |
 
 **Locking** (`Lock` type):
+
 - File-based: creates `manifest.json.lock`
 - `Acquire(timeout)`: retries every 100ms, recovers stale locks (>30s old)
 - `Release()`: removes lock file
@@ -250,14 +255,15 @@ Interactive Bubble Tea components with Lip Gloss styling.
 
 **Components:**
 
-| Component | Model | Purpose | Key bindings |
-|-----------|-------|---------|-------------|
-| `ClientSelectModel` | Bubble Tea | Multi-select client picker | `↑↓` navigate, `space` toggle, `a` all, `n` none, `enter` confirm, `q`/`esc` quit |
-| `SkillSelectModel` | Bubble Tea | Filterable skill browser | `↑↓` navigate, type to filter, `backspace` clear, `enter` select, `esc` quit |
-| `ProgressModel` | Bubble Tea | Install/update progress with bar | Static output via `PrintProgress()` |
-| `StatusTable` | tabwriter | Cross-client status grid | Non-interactive — `PrintStatusTable()` |
+| Component           | Model      | Purpose                          | Key bindings                                                                      |
+| ------------------- | ---------- | -------------------------------- | --------------------------------------------------------------------------------- |
+| `ClientSelectModel` | Bubble Tea | Multi-select client picker       | `↑↓` navigate, `space` toggle, `a` all, `n` none, `enter` confirm, `q`/`esc` quit |
+| `SkillSelectModel`  | Bubble Tea | Filterable skill browser         | `↑↓` navigate, type to filter, `backspace` clear, `enter` select, `esc` quit      |
+| `ProgressModel`     | Bubble Tea | Install/update progress with bar | Static output via `PrintProgress()`                                               |
+| `StatusTable`       | tabwriter  | Cross-client status grid         | Non-interactive — `PrintStatusTable()`                                            |
 
 **Styling** (Lip Gloss):
+
 - Color palette: Purple (titles), Cyan (selected), Green (success/checked), Yellow (active), Red (error), Gray (help text)
 - Status indicators: `*` done, `o` active, `-` pending, `!` error
 
@@ -267,14 +273,14 @@ Cobra command definitions. The CLI layer orchestrates all other packages.
 
 **Commands:**
 
-| Command | Args | Key Flags | Interactive |
-|---------|------|-----------|-------------|
-| `list` | (none) | `--remote`, `--repo`, `--json` | No |
-| `install` | `[skill]` | `--client`, `--scope`, `--include-refs`, `--dry-run` | Yes — skill picker + client multi-select when args omitted |
-| `uninstall` | `<skill>` | `--client` | No |
-| `status` | (none) | `--json` | No |
-| `update` | `[skill]` | `--client` | No |
-| `clients` | (none) | `--json` | No |
+| Command     | Args      | Key Flags                                            | Interactive                                                |
+| ----------- | --------- | ---------------------------------------------------- | ---------------------------------------------------------- |
+| `list`      | (none)    | `--remote`, `--repo`, `--json`                       | No                                                         |
+| `install`   | `[skill]` | `--client`, `--scope`, `--include-refs`, `--dry-run` | Yes — skill picker + client multi-select when args omitted |
+| `uninstall` | `<skill>` | `--client`                                           | No                                                         |
+| `status`    | (none)    | `--json`                                             | No                                                         |
+| `update`    | `[skill]` | `--client`                                           | No                                                         |
+| `clients`   | (none)    | `--json`                                             | No                                                         |
 
 **Install flow:**
 
@@ -340,29 +346,29 @@ aisk/
 
 ## External Dependencies
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `github.com/spf13/cobra` | v1.10.2 | CLI command framework |
-| `github.com/charmbracelet/bubbletea` | v1.3.10 | TUI framework |
-| `github.com/charmbracelet/bubbles` | v0.21.1 | Pre-built TUI widgets |
-| `github.com/charmbracelet/lipgloss` | v1.1.0 | Terminal styling |
-| `gopkg.in/yaml.v3` | v3.0.1 | YAML frontmatter parsing |
+| Package                              | Version | Purpose                  |
+| ------------------------------------ | ------- | ------------------------ |
+| `github.com/spf13/cobra`             | v1.10.2 | CLI command framework    |
+| `github.com/charmbracelet/bubbletea` | v1.3.10 | TUI framework            |
+| `github.com/charmbracelet/bubbles`   | v0.21.1 | Pre-built TUI widgets    |
+| `github.com/charmbracelet/lipgloss`  | v1.1.0  | Terminal styling         |
+| `gopkg.in/yaml.v3`                   | v3.0.1  | YAML frontmatter parsing |
 
 No `go-github` dependency — the remote fetcher uses `net/http` with the GitHub REST API directly, keeping the dependency tree minimal.
 
 ## Environment Variables
 
-| Variable | Purpose | Default |
-|----------|---------|---------|
-| `AISK_SKILLS_PATH` | Local skills repository path | Current working directory |
-| `AISK_REMOTE_REPO` | Default GitHub repo for `--remote` | (none) |
-| `GITHUB_TOKEN` | GitHub API auth (60 → 5000 req/hr) | Unauthenticated |
+| Variable           | Purpose                            | Default                   |
+| ------------------ | ---------------------------------- | ------------------------- |
+| `AISK_SKILLS_PATH` | Local skills repository path       | Current working directory |
+| `AISK_REMOTE_REPO` | Default GitHub repo for `--remote` | (none)                    |
+| `GITHUB_TOKEN`     | GitHub API auth (60 → 5000 req/hr) | Unauthenticated           |
 
 ## Data Flow
 
 ### Skill Discovery
 
-```
+```text
 Local:  AISK_SKILLS_PATH → ScanLocal() → []*Skill
 Remote: GitHub API → FetchRemoteList() → []*Skill (metadata only)
                    → FetchRemoteSkill() → *Skill (full download to cache)
@@ -370,7 +376,7 @@ Remote: GitHub API → FetchRemoteList() → []*Skill (metadata only)
 
 ### Installation
 
-```
+```text
 Skill + Client + Scope
   → resolveTargetPath(client, scope)
   → adapter.ForClient(clientID)
@@ -381,7 +387,7 @@ Skill + Client + Scope
 
 ### Section Marker Lifecycle
 
-```
+```text
 First install:   create file with <!-- aisk:start:X -->...<!-- aisk:end:X -->
 Re-install:      find markers → replace content between them
 Uninstall:       find markers → remove section + surrounding whitespace

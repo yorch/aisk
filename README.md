@@ -50,7 +50,7 @@ aisk uninstall 5-whys-skill --client claude
 
 List available skills from the local repository. Use `--remote` to also fetch from GitHub (requires `--repo` or `AISK_REMOTE_REPO`).
 
-```
+```text
 NAME                        VERSION      DIRECTORY               SOURCE
 5-Whys Root Cause Analysis  0.1.0        5-whys-skill            local
 code-review-excellence      unversioned  code-review-skill       local
@@ -82,7 +82,7 @@ Re-install skills with the latest version from the source repository.
 
 Show all detected AI clients with their install paths.
 
-```
+```text
 CLIENT           DETECTED  GLOBAL PATH                   PROJECT PATH
 Claude Code      *         ~/.claude/skills              .claude/skills
 Gemini CLI       *         ~/.gemini/GEMINI.md           GEMINI.md
@@ -98,14 +98,14 @@ Windsurf         *         ~/.codeium/windsurf/...       .windsurf/rules
 
 Each client has a dedicated adapter that transforms skills into the native format:
 
-| Client | Format | Method |
-|--------|--------|--------|
-| Claude Code | Directory with SKILL.md | Symlink (local) or copy (remote) |
-| Gemini CLI | Markdown section in GEMINI.md | Append with section markers |
-| Codex CLI | Markdown section in instructions.md | Append with section markers |
-| VS Code Copilot | Markdown section | Append with section markers |
-| Cursor | `.mdc` file with YAML frontmatter | Individual rule file |
-| Windsurf | `.md` file or global rules section | File (project) or append (global) |
+| Client          | Format                              | Method                            |
+| --------------- | ----------------------------------- | --------------------------------- |
+| Claude Code     | Directory with SKILL.md             | Symlink (local) or copy (remote)  |
+| Gemini CLI      | Markdown section in GEMINI.md       | Append with section markers       |
+| Codex CLI       | Markdown section in instructions.md | Append with section markers       |
+| VS Code Copilot | Markdown section                    | Append with section markers       |
+| Cursor          | `.mdc` file with YAML frontmatter   | Individual rule file              |
+| Windsurf        | `.md` file or global rules section  | File (project) or append (global) |
 
 ### Section Markers
 
@@ -135,11 +135,11 @@ Set `AISK_SKILLS_PATH` to point to your skills repository, or run `aisk` from th
 
 ## Configuration
 
-| Environment Variable | Purpose | Default |
-|---------------------|---------|---------|
-| `AISK_SKILLS_PATH` | Local skills repository path | Current working directory |
-| `AISK_REMOTE_REPO` | Default GitHub repo for `--remote` | (none) |
-| `GITHUB_TOKEN` | GitHub API authentication | (unauthenticated, 60 req/hr) |
+| Environment Variable | Purpose                            | Default                      |
+| -------------------- | ---------------------------------- | ---------------------------- |
+| `AISK_SKILLS_PATH`   | Local skills repository path       | Current working directory    |
+| `AISK_REMOTE_REPO`   | Default GitHub repo for `--remote` | (none)                       |
+| `GITHUB_TOKEN`       | GitHub API authentication          | (unauthenticated, 60 req/hr) |
 
 Installation tracking is stored in `~/.aisk/manifest.json`.
 

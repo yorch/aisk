@@ -19,6 +19,7 @@ AI coding assistants (Claude Code, Gemini CLI, Codex CLI, VS Code Copilot, Curso
 **Chosen**: Go with Cobra (CLI) and Bubble Tea (TUI)
 
 **Rationale**:
+
 - Single static binary — no runtime dependencies, easy distribution
 - Cobra gives us subcommands, flags, and help generation for free
 - Bubble Tea enables rich terminal UIs (multi-select, filtering, progress bars)
@@ -26,6 +27,7 @@ AI coding assistants (Claude Code, Gemini CLI, Codex CLI, VS Code Copilot, Curso
 - Cross-platform (darwin/linux/windows) via GoReleaser
 
 **Alternatives considered**:
+
 - Python + Click: would require Python runtime; TUI options (textual, rich) add weight
 - Rust + clap: stronger type safety but slower development velocity for a tool this size
 - Node + ink: would require Node.js runtime
@@ -35,6 +37,7 @@ AI coding assistants (Claude Code, Gemini CLI, Codex CLI, VS Code Copilot, Curso
 **Chosen**: Per-client adapter structs implementing a common interface
 
 **Rationale**:
+
 - Each client's format is different enough that a template system would still need per-client logic
 - Adapters encapsulate format-specific knowledge (symlinks vs append vs .mdc)
 - Easy to add new clients — implement the 3-method interface
@@ -47,6 +50,7 @@ AI coding assistants (Claude Code, Gemini CLI, Codex CLI, VS Code Copilot, Curso
 **Chosen**: Symlink local skills, copy remote skills
 
 **Rationale**:
+
 - Symlinks keep skills in sync with the source repo automatically
 - No duplication — changes in the skills repo are immediately visible
 - Remote skills can't be symlinked (no local path), so they get copied
@@ -56,6 +60,7 @@ AI coding assistants (Claude Code, Gemini CLI, Codex CLI, VS Code Copilot, Curso
 **Chosen**: HTML comment markers `<!-- aisk:start:name -->...<!-- aisk:end:name -->`
 
 **Rationale**:
+
 - Invisible in rendered markdown
 - Enables idempotent updates — find markers, replace content between them
 - Enables clean uninstall — remove the section without corrupting surrounding content
@@ -68,6 +73,7 @@ AI coding assistants (Claude Code, Gemini CLI, Codex CLI, VS Code Copilot, Curso
 **Chosen**: JSON file at `~/.aisk/manifest.json` with file-based locking
 
 **Rationale**:
+
 - JSON is human-readable and debuggable
 - Simple enough — no need for SQLite or other databases
 - File-based lock prevents concurrent aisk processes from corrupting the manifest
@@ -78,6 +84,7 @@ AI coding assistants (Claude Code, Gemini CLI, Codex CLI, VS Code Copilot, Curso
 **Chosen**: Scan for `SKILL.md` files with YAML frontmatter in subdirectories
 
 **Rationale**:
+
 - Matches the existing claude-skills repo convention
 - YAML frontmatter is standard in static site generators, familiar to developers
 - Progressive disclosure — frontmatter is small, reference files are loaded on demand
@@ -88,6 +95,7 @@ AI coding assistants (Claude Code, Gemini CLI, Codex CLI, VS Code Copilot, Curso
 **Chosen**: Launch TUI pickers when skill/client args are omitted
 
 **Rationale**:
+
 - `aisk install` with no args → interactive skill browser → client multi-select → install
 - `aisk install 5-whys-skill --client claude` → direct install, no TUI
 - Best of both worlds: discoverable for new users, scriptable for automation
@@ -95,14 +103,14 @@ AI coding assistants (Claude Code, Gemini CLI, Codex CLI, VS Code Copilot, Curso
 
 ## Client Format Matrix
 
-| Client | Install Format | Uninstall Method | Scope Support |
-|--------|---------------|------------------|---------------|
-| Claude Code | Symlinked directory in `~/.claude/skills/` | Remove symlink/dir | Global + Project |
-| Gemini CLI | Markdown section appended to `GEMINI.md` | Remove section by markers | Global + Project |
-| Codex CLI | Markdown section appended to `instructions.md` | Remove section by markers | Global + Project |
-| VS Code Copilot | Markdown section appended to `copilot-instructions.md` | Remove section by markers | Project only |
-| Cursor | `.mdc` file in `.cursor/rules/` | Delete file | Project only |
-| Windsurf | `.md` file (project) or section append (global) | Delete file or remove section | Global + Project |
+| Client          | Install Format                                         | Uninstall Method              | Scope Support    |
+| --------------- | ------------------------------------------------------ | ----------------------------- | ---------------- |
+| Claude Code     | Symlinked directory in `~/.claude/skills/`             | Remove symlink/dir            | Global + Project |
+| Gemini CLI      | Markdown section appended to `GEMINI.md`               | Remove section by markers     | Global + Project |
+| Codex CLI       | Markdown section appended to `instructions.md`         | Remove section by markers     | Global + Project |
+| VS Code Copilot | Markdown section appended to `copilot-instructions.md` | Remove section by markers     | Project only     |
+| Cursor          | `.mdc` file in `.cursor/rules/`                        | Delete file                   | Project only     |
+| Windsurf        | `.md` file (project) or section append (global)        | Delete file or remove section | Global + Project |
 
 ## Phased Delivery
 
@@ -156,11 +164,11 @@ AI coding assistants (Claude Code, Gemini CLI, Codex CLI, VS Code Copilot, Curso
 
 ## Risk Analysis
 
-| Risk | Mitigation |
-|------|-----------|
-| Client format changes | Adapter pattern isolates changes to one file per client |
-| GitHub API rate limits | `GITHUB_TOKEN` support; unauthenticated still allows 60 req/hr |
-| Large reference files | `--include-refs` is opt-in; default installs are lean (SKILL.md body only) |
-| Concurrent aisk processes | File-based manifest locking with stale lock recovery |
-| New AI clients emerge | Adding a client = new detector function + adapter struct + register in factory |
+| Risk                            | Mitigation                                                                                                   |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Client format changes           | Adapter pattern isolates changes to one file per client                                                      |
+| GitHub API rate limits          | `GITHUB_TOKEN` support; unauthenticated still allows 60 req/hr                                               |
+| Large reference files           | `--include-refs` is opt-in; default installs are lean (SKILL.md body only)                                   |
+| Concurrent aisk processes       | File-based manifest locking with stale lock recovery                                                         |
+| New AI clients emerge           | Adding a client = new detector function + adapter struct + register in factory                               |
 | Symlink not supported (Windows) | `ClaudeAdapter` falls back to copy for remote skills; local symlinks work on Windows 10+ with developer mode |
