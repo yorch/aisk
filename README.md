@@ -46,9 +46,9 @@ aisk uninstall 5-whys-skill --client claude
 
 ## Commands
 
-### `aisk list [--remote] [--json]`
+### `aisk list [--remote] [--repo <owner/repo>] [--json]`
 
-List available skills from the local repository.
+List available skills from the local repository. Use `--remote` to also fetch from GitHub (requires `--repo` or `AISK_REMOTE_REPO`).
 
 ```
 NAME                        VERSION      DIRECTORY               SOURCE
@@ -150,9 +150,13 @@ make build     # Build binary to bin/aisk
 make test      # Run all tests with race detector
 make lint      # Run golangci-lint
 make check     # Format, vet, and test
+make fmt       # Run gofmt
+make vet       # Run go vet
+make snapshot  # GoReleaser snapshot build
+make install   # Build and copy to /usr/local/bin
 make clean     # Remove build artifacts
 ```
 
 ## License
 
-MIT
+[MIT](LICENSE)
