@@ -34,3 +34,6 @@ dist/
 # Environment
 .env
 .env.*
+
+# AI
+.claude/settings.local.json
