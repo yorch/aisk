@@ -30,7 +30,7 @@ The data flow is: **CLI command → skill discovery → client detection → ada
 ### Package Responsibilities
 
 - **`cmd/aisk`** — Entrypoint, delegates to `cli.Execute()`
-- **`internal/cli`** — Cobra commands: `install`, `uninstall`, `list`, `update`, `status`, `clients`. Orchestrates the full install pipeline (discover skills → detect clients → pick adapter → install → update manifest).
+- **`internal/cli`** — Cobra commands: `install`, `uninstall`, `list`, `update`, `status`, `clients`, `create`, `lint`. Orchestrates the full install pipeline (discover skills → detect clients → pick adapter → install → update manifest).
 - **`internal/skill`** — Skill model and discovery. `ScanLocal()` finds `SKILL.md` files in subdirectories and parses YAML frontmatter. `FetchRemoteList()`/`FetchRemoteSkill()` fetch from GitHub API. `ReadFullContent()` optionally inlines reference files.
 - **`internal/client`** — Client registry and detection. `DetectAll()` checks for config dirs (`~/.claude`, `~/.gemini`, etc.) and binaries in PATH. Each client knows its global/project install paths.
 - **`internal/adapter`** — The `Adapter` interface (`Install`, `Uninstall`, `Describe`) with per-client implementations:
@@ -39,7 +39,8 @@ The data flow is: **CLI command → skill discovery → client detection → ada
   - `CursorAdapter` — writes `.mdc` files with Cursor YAML frontmatter
   - `WindsurfAdapter` — individual `.md` files (project) or appended sections (global)
 - **`internal/manifest`** — JSON file at `~/.aisk/manifest.json` tracking all installations (skill, client, scope, timestamps, paths). Uses file-based locking with stale-lock recovery.
-- **`internal/config`** — Path resolution (`~/.aisk/`, cache dir, skills repo from `AISK_SKILLS_PATH` or cwd)
+- **`internal/config`** — Path resolution (`~/.aisk/`, cache dir, skills repo from `AISK_SKILLS_PATH` or cwd) and project-root detection for project-scope behaviors.
+- **`internal/gitignore`** — Managed `.gitignore` section helpers for project-scope installs/uninstalls.
 - **`internal/tui`** — Bubble Tea interactive components (skill picker, client multi-select, progress display)
 
 ### Key Design Patterns

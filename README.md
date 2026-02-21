@@ -22,6 +22,12 @@ just build
 ## Quick Start
 
 ```bash
+# Scaffold a new skill
+aisk create my-new-skill
+
+# Validate it before publishing
+aisk lint my-new-skill
+
 # List available skills (run from your skills repo directory)
 aisk list
 
@@ -36,6 +42,9 @@ aisk install 5-whys-skill
 
 # Check what's installed
 aisk status
+
+# Skip update checks in status output
+aisk status --check-updates=false
 
 # Update all installations
 aisk update
@@ -66,13 +75,21 @@ Install a skill to one or more AI clients.
 - `--include-refs`: inline reference files (can be large for some skills)
 - `--dry-run`: preview changes without writing
 
+When `--scope project` is used, aisk manages a dedicated section in the project `.gitignore`:
+
+- Adds client-specific install artifacts on install (for successful installs only)
+- Removes entries on uninstall when that client no longer has project installs in the current repo
+
 ### `aisk uninstall <skill> [--client <id>]`
 
 Remove a skill. Without `--client`, removes from all clients where installed.
 
-### `aisk status [--json]`
+### `aisk status [--json] [--check-updates=true|false]`
 
 Show installed skills per client in a table view.
+
+- `--check-updates` defaults to `true`
+- When enabled, prints an "Updates available" table based on local repository versions
 
 ### `aisk update [skill] [--client <id>]`
 
@@ -91,6 +108,25 @@ VS Code Copilot  *         (n/a)                         .github/copilot-instruc
 Cursor           *         (n/a)                         .cursor/rules
 Windsurf         *         ~/.codeium/windsurf/...       .windsurf/rules
 ```
+
+### `aisk create <name> [--path <dir>]`
+
+Scaffold a new skill directory with:
+
+- `SKILL.md` template with frontmatter + instruction placeholders
+- `README.md`
+- `reference/`
+- `examples/`
+
+`name` must be kebab-case: lowercase letters, digits, and single hyphens.
+
+### `aisk lint [path]`
+
+Validate a skill directory or a single `SKILL.md` file.
+
+- Reports errors and warnings
+- Exits with code `1` when errors are present
+- Checks frontmatter validity, required fields, body content, version-format warnings, and empty `reference/`/`examples/`
 
 ## How It Works
 
@@ -112,9 +148,9 @@ Each client has a dedicated adapter that transforms skills into the native forma
 For append-mode clients (Gemini, Codex, Copilot, Windsurf global), aisk uses HTML comment markers for idempotent installs:
 
 ```html
-<!-- aisk:start:5-Whys Root Cause Analysis -->
+<!-- aisk:start:5-whys-skill -->
 ...skill content...
-<!-- aisk:end:5-Whys Root Cause Analysis -->
+<!-- aisk:end:5-whys-skill -->
 ```
 
 This means re-installing updates the content in-place without duplication.

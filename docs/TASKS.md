@@ -8,8 +8,8 @@
 | Phase 2: All Client Adapters | 10     | Complete               |
 | Phase 3: TUI Layer           | 6      | Complete               |
 | Phase 4: Remote & Polish     | 9      | Complete               |
-| Phase 5: Future              | 6      | Backlog                |
-| **Total**                    | **43** | **37 done, 6 backlog** |
+| Phase 5: Future              | 6      | In progress            |
+| **Total**                    | **43** | **Ongoing**            |
 
 ---
 
@@ -201,7 +201,7 @@
 
 ### 4.4 Build configuration
 
-- [x] Makefile: build, test, lint, check, fmt, vet, snapshot, install, clean
+- [x] justfile: build, test, lint, check, fmt, vet, snapshot, install, clean
 - [x] GoReleaser: darwin/linux/windows × amd64/arm64, tar.gz/zip, checksums
 - [x] Homebrew tap formula (GoReleaser config)
 
@@ -209,26 +209,26 @@
 
 - [x] README.md with install, quick start, command reference, adapter system, configuration
 
-**Verification**: `aisk list --json`, `aisk clients --json`, `make build && make test`
+**Verification**: `aisk list --json`, `aisk clients --json`, `just build && just test`
 
 ---
 
-## Phase 5: Future (Backlog)
+## Phase 5: Future
 
 ### 5.1 Skill authoring
 
-- [ ] `aisk create <name>` — scaffold a new skill directory with SKILL.md template
-- [ ] `aisk lint <path>` — validate SKILL.md frontmatter, check for required fields
+- [x] `aisk create <name>` — scaffold a new skill directory with SKILL.md template
+- [x] `aisk lint <path>` — validate SKILL.md frontmatter, check for required fields
 
 ### 5.2 Project-scoped installs
 
-- [ ] Automatic `.gitignore` management when installing to project scope
-- [ ] Detect project root (look for `.git/`, `package.json`, `go.mod`)
+- [x] Automatic `.gitignore` management when installing to project scope
+- [x] Detect project root (look for `.git/`, `package.json`, `go.mod`)
 
 ### 5.3 Auto-update
 
-- [ ] Compare manifest version vs available version on `aisk status`
-- [ ] Notification when installed skills have newer versions
+- [x] Compare manifest version vs available version on `aisk status`
+- [x] Notification when installed skills have newer versions
 
 ### 5.4 Distribution
 

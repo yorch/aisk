@@ -150,15 +150,15 @@ AI coding assistants (Claude Code, Gemini CLI, Codex CLI, VS Code Copilot, Curso
 - [x] `--remote` and `--repo` flags on `list`
 - [x] `--json` output for `list`, `status`, `clients`
 - [x] GoReleaser config (darwin/linux/windows × amd64/arm64)
-- [x] Makefile (build, test, lint, check, snapshot, install, clean)
+- [x] justfile (build, test, lint, check, snapshot, install, clean)
 - [x] README with usage documentation
 
 ### Phase 5: Future (post-MVP)
 
-- [ ] `aisk create <name>` — scaffold a new skill directory
-- [ ] `aisk lint <path>` — validate SKILL.md format and structure
-- [ ] Project-scoped installs with automatic `.gitignore` management
-- [ ] Auto-update notifications when installed skills have newer versions
+- [x] `aisk create <name>` — scaffold a new skill directory
+- [x] `aisk lint <path>` — validate SKILL.md format and structure
+- [x] Project-scoped installs with automatic `.gitignore` management
+- [x] Auto-update notifications when installed skills have newer versions
 - [ ] Homebrew tap publishing
 - [ ] Shell completions (bash, zsh, fish)
 

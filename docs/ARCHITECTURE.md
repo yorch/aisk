@@ -12,7 +12,7 @@
 ┌──────────────────────▼──────────────────────────────┐
 │                  internal/cli                        │
 │   root · list · install · uninstall · status         │
-│   update · clients                                   │
+│   update · clients · create · lint                   │
 └──┬────┬────┬────┬────┬──────────────────────────────┘
    │    │    │    │    │
    ▼    ▼    ▼    ▼    ▼
@@ -26,12 +26,13 @@ cmd/aisk/main.go
     └→ cli.Execute()
 
 internal/cli
-    ├→ config     (ResolvePaths, EnsureDirs)
-    ├→ skill      (ScanLocal, FetchRemoteList, ParseFrontmatter)
+    ├→ config     (ResolvePaths, EnsureDirs, FindProjectRoot)
+    ├→ skill      (ScanLocal, FetchRemoteList, ParseFrontmatter, Scaffold, LintSkillDir, CheckUpdates)
     ├→ client     (NewRegistry, DetectAll, ParseClientID)
     ├→ adapter    (ForClient, InstallOpts)
-    ├→ manifest   (Load, Save, Lock, Add/Remove/Find)
-    └→ tui        (RunSkillSelect, RunClientSelect, PrintProgress, PrintStatusTable)
+    ├→ manifest   (Load, Save, Lock, Add/Remove/Find/FindByScope)
+    ├→ gitignore  (EnsureEntries, RemoveEntries)
+    └→ tui        (RunSkillSelect, RunClientSelect, PrintProgress, PrintStatusTable, PrintUpdateTable)
 
 internal/adapter
     ├→ skill      (Skill type, ReadFullContent)
@@ -46,6 +47,7 @@ internal/manifest   (no internal deps)
 internal/client     (no internal deps)
 internal/skill      (no internal deps)
 internal/config     (no internal deps)
+internal/gitignore  (no internal deps)
 ```
 
 **Key constraint**: `adapter` never imports `manifest`. The CLI loads the manifest after adapter operations complete, keeping adaptation and tracking cleanly separated.
@@ -56,13 +58,14 @@ internal/config     (no internal deps)
 
 Resolves application paths from the user's home directory and environment.
 
-| Export               | Type   | Purpose                                                 |
-| -------------------- | ------ | ------------------------------------------------------- |
-| `AppName`            | const  | `"aisk"`                                                |
-| `AppVersion`         | const  | `"0.1.0"`                                               |
-| `Paths`              | struct | Home, AiskDir, CacheDir, ManifestDB, SkillsRepo         |
-| `ResolvePaths()`     | func   | Resolves paths; `AISK_SKILLS_PATH` overrides SkillsRepo |
-| `Paths.EnsureDirs()` | method | Creates `~/.aisk/` and `~/.aisk/cache/`                 |
+| Export               | Type   | Purpose                                                  |
+| -------------------- | ------ | -------------------------------------------------------- |
+| `AppName`            | const  | `"aisk"`                                                 |
+| `AppVersion`         | const  | CLI version string                                       |
+| `Paths`              | struct | Home, AiskDir, CacheDir, ManifestDB, SkillsRepo          |
+| `ResolvePaths()`     | func   | Resolves paths; `AISK_SKILLS_PATH` overrides SkillsRepo  |
+| `Paths.EnsureDirs()` | method | Creates `~/.aisk/` and `~/.aisk/cache/`                  |
+| `FindProjectRoot()`  | func   | Walks up from cwd to find root markers (`.git`, `go.mod`) |
 
 ### `internal/skill`
 
@@ -103,6 +106,10 @@ type Skill struct {
 | `FetchRemoteList(owner, repo) → ([]*Skill, error)`          | Lists skills from a GitHub repo via API             |
 | `FetchRemoteSkill(owner, repo, cacheDir) → (*Skill, error)` | Downloads full skill to local cache                 |
 | `ParseRepoURL(url) → (owner, repo, ok)`                     | Parses `github.com/owner/repo` format               |
+| `Scaffold(parentDir, name) → (string, error)`               | Creates skill skeleton (`SKILL.md`, `README.md`, dirs) |
+| `LintSkillMD(content) → *LintReport`                        | Validates frontmatter/body and returns findings     |
+| `LintSkillDir(path) → (*LintReport, error)`                 | Validates a full skill directory                    |
+| `CheckUpdates(installed, available) → []UpdateInfo`         | Computes version mismatches for status/update hints |
 
 **Local discovery logic:**
 
@@ -241,7 +248,18 @@ type Manifest struct {
 | `RemoveAll(skill)`             | Delete all entries for a skill                               |
 | `Find(skill, client)`          | Filter by skill name, optionally by client                   |
 | `FindByClient(client)`         | All installations for a client                               |
+| `FindByScope(scope)`           | All installations for a scope (`global`/`project`)           |
 | `AllSkillNames()`              | Deduplicated list of installed skill names                   |
+
+New project-scope installs store absolute install paths in manifest entries so cleanup logic can identify the current repository accurately.
+
+### `internal/gitignore`
+
+Manages a dedicated `# aisk managed` block in `.gitignore` for project-scope installs.
+
+- `EnsureEntries(path, patterns)` adds missing patterns idempotently
+- `RemoveEntries(path, patterns)` removes patterns and deletes empty managed block
+- `GitignorePatternsForClient(clientID, installPath)` maps clients to expected project artifacts
 
 **Locking** (`Lock` type):
 
@@ -261,6 +279,7 @@ Interactive Bubble Tea components with Lip Gloss styling.
 | `SkillSelectModel`  | Bubble Tea | Filterable skill browser         | `↑↓` navigate, type to filter, `backspace` clear, `enter` select, `esc` quit      |
 | `ProgressModel`     | Bubble Tea | Install/update progress with bar | Static output via `PrintProgress()`                                               |
 | `StatusTable`       | tabwriter  | Cross-client status grid         | Non-interactive — `PrintStatusTable()`                                            |
+| `UpdateTable`       | tabwriter  | Available update summary         | Non-interactive — `PrintUpdateTable()`                                            |
 
 **Styling** (Lip Gloss):
 
@@ -278,9 +297,11 @@ Cobra command definitions. The CLI layer orchestrates all other packages.
 | `list`      | (none)    | `--remote`, `--repo`, `--json`                       | No                                                         |
 | `install`   | `[skill]` | `--client`, `--scope`, `--include-refs`, `--dry-run` | Yes — skill picker + client multi-select when args omitted |
 | `uninstall` | `<skill>` | `--client`                                           | No                                                         |
-| `status`    | (none)    | `--json`                                             | No                                                         |
+| `status`    | (none)    | `--json`, `--check-updates`                          | No                                                         |
 | `update`    | `[skill]` | `--client`                                           | No                                                         |
 | `clients`   | (none)    | `--json`                                             | No                                                         |
+| `create`    | `<name>`  | `--path`                                             | No                                                         |
+| `lint`      | `[path]`  | (none)                                               | No                                                         |
 
 **Install flow:**
 
@@ -311,12 +332,17 @@ aisk/
 │   │   ├── uninstall.go                 #   aisk uninstall
 │   │   ├── status.go                    #   aisk status
 │   │   ├── update.go                    #   aisk update
-│   │   └── clients.go                   #   aisk clients
+│   │   ├── clients.go                   #   aisk clients
+│   │   ├── create.go                    #   aisk create
+│   │   └── lint.go                      #   aisk lint
 │   ├── skill/                           # Skill model & discovery (~550 lines)
 │   │   ├── skill.go                     #   Skill struct, frontmatter parsing
 │   │   ├── local.go                     #   Local filesystem scanner
 │   │   ├── remote.go                    #   GitHub API fetcher
-│   │   └── content.go                   #   Content reader (body + refs)
+│   │   ├── content.go                   #   Content reader (body + refs)
+│   │   ├── scaffold.go                  #   Skill scaffolding
+│   │   ├── validate.go                  #   Skill linting and name validation
+│   │   └── updates.go                   #   Installed vs available version checks
 │   ├── client/                          # AI client detection (~190 lines)
 │   │   ├── client.go                    #   Client model + registry
 │   │   └── detect.go                    #   Per-client detection logic
@@ -334,12 +360,16 @@ aisk/
 │   │   ├── clientselect.go              #   Multi-select client picker
 │   │   ├── skillselect.go              #   Skill browser with filtering
 │   │   ├── progress.go                  #   Install/update progress view
-│   │   └── statustable.go              #   Status table view
+│   │   ├── statustable.go              #   Status table view
+│   │   └── updatetable.go              #   Updates table view
+│   ├── gitignore/
+│   │   └── gitignore.go                #   Managed .gitignore section helpers
 │   └── config/
-│       └── config.go                    #   Paths, defaults, env vars
+│       ├── config.go                    #   Paths, defaults, env vars
+│       └── projectroot.go               #   Project root detection
 ├── internal/**/*_test.go                # Tests (~900 lines across 8 files)
 ├── go.mod / go.sum
-├── Makefile
+├── justfile
 ├── .goreleaser.yaml
 └── README.md
 ```
@@ -382,6 +412,7 @@ Skill + Client + Scope
   → adapter.ForClient(clientID)
   → adapter.Install(skill, targetPath, opts)
   → manifest.Add(installation)
+  → (project scope) update managed .gitignore section
   → manifest.Save()
 ```
 
