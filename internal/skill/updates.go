@@ -26,49 +26,49 @@ func CheckUpdates(installations []manifest.Installation, available []*Skill) []U
 		}
 	}
 
-	// Group installations by skill name
+	// Group installations by skill name + installed version so mixed-version
+	// clients are reported accurately.
 	type installed struct {
-		version string
-		clients []string
+		skillName        string
+		installedVersion string
+		availableVersion string
+		clients          []string
 	}
 	groups := make(map[string]*installed)
 	var order []string
 
 	for _, inst := range installations {
-		g, ok := groups[inst.SkillName]
+		availVer, found := avail[inst.SkillName]
+		if !found {
+			continue // not in available repo
+		}
+		if inst.SkillVersion != "" && inst.SkillVersion != "unversioned" && inst.SkillVersion == availVer {
+			continue // already up-to-date
+		}
+
+		key := inst.SkillName + "\x00" + inst.SkillVersion + "\x00" + availVer
+		g, ok := groups[key]
 		if !ok {
-			g = &installed{version: inst.SkillVersion}
-			groups[inst.SkillName] = g
-			order = append(order, inst.SkillName)
+			g = &installed{
+				skillName:        inst.SkillName,
+				installedVersion: inst.SkillVersion,
+				availableVersion: availVer,
+			}
+			groups[key] = g
+			order = append(order, key)
 		}
 		g.clients = append(g.clients, inst.ClientID)
 	}
 
 	var updates []UpdateInfo
-	for _, name := range order {
-		g := groups[name]
-		availVer, found := avail[name]
-		if !found {
-			continue // not in available repo
-		}
-		if g.version == "" || g.version == "unversioned" {
-			// Installed without version — always show as updatable if repo has a version
-			updates = append(updates, UpdateInfo{
-				SkillName:        name,
-				InstalledVersion: g.version,
-				AvailableVersion: availVer,
-				AffectedClients:  g.clients,
-			})
-			continue
-		}
-		if g.version != availVer {
-			updates = append(updates, UpdateInfo{
-				SkillName:        name,
-				InstalledVersion: g.version,
-				AvailableVersion: availVer,
-				AffectedClients:  g.clients,
-			})
-		}
+	for _, key := range order {
+		g := groups[key]
+		updates = append(updates, UpdateInfo{
+			SkillName:        g.skillName,
+			InstalledVersion: g.installedVersion,
+			AvailableVersion: g.availableVersion,
+			AffectedClients:  g.clients,
+		})
 	}
 
 	return updates

@@ -42,6 +42,8 @@ func runInstall(_ *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	cwd, _ := os.Getwd()
+	projectRoot := config.FindProjectRoot(cwd)
 
 	// Discover available skills
 	skills, err := skill.ScanLocal(paths.SkillsRepo)
@@ -143,6 +145,7 @@ func runInstall(_ *cobra.Command, args []string) error {
 	}
 
 	var installed int
+	var successfulProjectClients []*client.Client
 	for i, c := range targetClients {
 		targetPath := resolveTargetPath(c, installScope)
 		if targetPath == "" {
@@ -175,6 +178,11 @@ func runInstall(_ *cobra.Command, args []string) error {
 			continue
 		}
 
+		manifestPath := targetPath
+		if installScope == "project" && projectRoot != "" {
+			manifestPath = filepath.Join(projectRoot, targetPath)
+		}
+
 		m.Add(manifest.Installation{
 			SkillName:    target.Frontmatter.Name,
 			SkillVersion: target.DisplayVersion(),
@@ -182,11 +190,14 @@ func runInstall(_ *cobra.Command, args []string) error {
 			Scope:        installScope,
 			InstalledAt:  time.Now(),
 			UpdatedAt:    time.Now(),
-			InstallPath:  targetPath,
+			InstallPath:  manifestPath,
 		})
 
 		progressItems[i].Status = tui.StatusDone
 		installed++
+		if installScope == "project" {
+			successfulProjectClients = append(successfulProjectClients, c)
+		}
 	}
 
 	if !installDryRun {
@@ -196,8 +207,8 @@ func runInstall(_ *cobra.Command, args []string) error {
 	}
 
 	// Manage .gitignore for project-scope installs
-	if installScope == "project" && !installDryRun && installed > 0 {
-		manageGitignoreOnInstall(targetClients)
+	if installScope == "project" && !installDryRun && len(successfulProjectClients) > 0 {
+		manageGitignoreOnInstall(successfulProjectClients)
 	}
 
 	// Print progress summary

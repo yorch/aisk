@@ -97,8 +97,8 @@ func cleanup(dir string) {
 func kebabToTitle(s string) string {
 	words := splitKebab(s)
 	for i, w := range words {
-		if len(w) > 0 {
-			words[i] = string(w[0]-32) + w[1:]
+		if len(w) > 0 && w[0] >= 'a' && w[0] <= 'z' {
+			words[i] = string(w[0]-('a'-'A')) + w[1:]
 		}
 	}
 	return joinWords(words)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -131,7 +132,9 @@ func manageGitignoreOnUninstall(m *manifest.Manifest, removed []manifest.Install
 	remaining := m.FindByScope("project")
 	stillUsed := make(map[string]bool)
 	for _, inst := range remaining {
-		stillUsed[inst.ClientID] = true
+		if isInstallationInProject(inst, projectRoot) {
+			stillUsed[inst.ClientID] = true
+		}
 	}
 
 	// Remove patterns for clients that no longer have project-scope installs
@@ -156,4 +159,20 @@ func manageGitignoreOnUninstall(m *manifest.Manifest, removed []manifest.Install
 	for _, r := range removedEntries {
 		fmt.Printf("Removed %s from .gitignore\n", r)
 	}
+}
+
+func isInstallationInProject(inst manifest.Installation, projectRoot string) bool {
+	if inst.Scope != "project" {
+		return false
+	}
+	if !filepath.IsAbs(inst.InstallPath) {
+		// Backward compatibility for older manifests that stored relative project paths.
+		// Assume these entries belong to the current project context.
+		return true
+	}
+	rel, err := filepath.Rel(projectRoot, inst.InstallPath)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
 }

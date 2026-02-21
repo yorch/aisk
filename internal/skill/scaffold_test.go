@@ -75,3 +75,20 @@ func TestScaffold_TemplateContent(t *testing.T) {
 		t.Error("SKILL.md should contain a 'Use when:' section")
 	}
 }
+
+func TestScaffold_TemplateContent_DigitWordPrefix(t *testing.T) {
+	dir := t.TempDir()
+	skillDir, err := Scaffold(dir, "skill-2fa")
+	if err != nil {
+		t.Fatalf("Scaffold error: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(skillDir, "SKILL.md"))
+	if err != nil {
+		t.Fatalf("reading SKILL.md: %v", err)
+	}
+
+	if !strings.Contains(string(data), "# Skill 2fa") {
+		t.Fatalf("expected digit-prefixed token to remain valid in title, got:\n%s", string(data))
+	}
+}

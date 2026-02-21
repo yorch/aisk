@@ -84,3 +84,24 @@ func TestCheckUpdates_Empty(t *testing.T) {
 		t.Errorf("expected 0 updates for empty input, got %d", len(updates))
 	}
 }
+
+func TestCheckUpdates_MixedInstalledVersions(t *testing.T) {
+	installations := []manifest.Installation{
+		{SkillName: "skill-a", SkillVersion: "2.0.0", ClientID: "claude"},
+		{SkillName: "skill-a", SkillVersion: "1.0.0", ClientID: "cursor"},
+	}
+	available := []*Skill{
+		{Frontmatter: Frontmatter{Name: "skill-a", Version: "2.0.0"}, DirName: "skill-a"},
+	}
+
+	updates := CheckUpdates(installations, available)
+	if len(updates) != 1 {
+		t.Fatalf("expected 1 update group, got %d", len(updates))
+	}
+	if updates[0].InstalledVersion != "1.0.0" || updates[0].AvailableVersion != "2.0.0" {
+		t.Fatalf("unexpected update versions: %s -> %s", updates[0].InstalledVersion, updates[0].AvailableVersion)
+	}
+	if len(updates[0].AffectedClients) != 1 || updates[0].AffectedClients[0] != "cursor" {
+		t.Fatalf("expected only cursor to be affected, got %v", updates[0].AffectedClients)
+	}
+}
