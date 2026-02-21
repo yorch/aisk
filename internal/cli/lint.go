@@ -7,6 +7,8 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
+	"github.com/yorch/aisk/internal/audit"
+	"github.com/yorch/aisk/internal/config"
 	"github.com/yorch/aisk/internal/skill"
 	"github.com/yorch/aisk/internal/tui"
 )
@@ -19,13 +21,20 @@ var lintCmd = &cobra.Command{
 }
 
 func runLint(_ *cobra.Command, args []string) error {
+	paths, err := config.ResolvePaths()
+	if err != nil {
+		return err
+	}
+	al := audit.New(paths.AiskDir, "lint")
 	target := "."
 	if len(args) > 0 {
 		target = args[0]
 	}
+	al.Log("command.lint", "started", map[string]any{"target": target}, nil)
 
 	info, err := os.Stat(target)
 	if err != nil {
+		al.Log("command.lint", "error", map[string]any{"target": target}, err)
 		return fmt.Errorf("cannot access %s: %w", target, err)
 	}
 
@@ -34,12 +43,14 @@ func runLint(_ *cobra.Command, args []string) error {
 	if info.IsDir() {
 		report, err = skill.LintSkillDir(target)
 		if err != nil {
+			al.Log("lint.run", "error", map[string]any{"target": target, "kind": "directory"}, err)
 			return err
 		}
 	} else {
 		// It's a file — lint as SKILL.md content
 		data, err := os.ReadFile(target)
 		if err != nil {
+			al.Log("lint.run", "error", map[string]any{"target": target, "kind": "file"}, err)
 			return fmt.Errorf("reading %s: %w", target, err)
 		}
 		report = skill.LintSkillMD(string(data))
@@ -47,6 +58,7 @@ func runLint(_ *cobra.Command, args []string) error {
 
 	if len(report.Results) == 0 {
 		fmt.Println(lipgloss.NewStyle().Foreground(tui.Green).Render("No issues found."))
+		al.Log("command.lint", "success", map[string]any{"target": target, "errors": 0, "warnings": 0}, nil)
 		return nil
 	}
 
@@ -77,7 +89,17 @@ func runLint(_ *cobra.Command, args []string) error {
 	fmt.Printf("\n%s\n", strings.Join(parts, ", "))
 
 	if report.HasErrors() {
+		al.Log("command.lint", "error", map[string]any{
+			"target":   target,
+			"errors":   len(errs),
+			"warnings": len(warns),
+		}, fmt.Errorf("lint failed"))
 		os.Exit(1)
 	}
+	al.Log("command.lint", "success", map[string]any{
+		"target":   target,
+		"errors":   len(errs),
+		"warnings": len(warns),
+	}, nil)
 	return nil
 }

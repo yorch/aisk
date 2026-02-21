@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/yorch/aisk/internal/adapter"
+	"github.com/yorch/aisk/internal/audit"
 	"github.com/yorch/aisk/internal/client"
 	"github.com/yorch/aisk/internal/config"
 	"github.com/yorch/aisk/internal/gitignore"
@@ -37,11 +38,27 @@ func init() {
 	installCmd.Flags().BoolVar(&installDryRun, "dry-run", false, "show what would be done without making changes")
 }
 
-func runInstall(_ *cobra.Command, args []string) error {
+func runInstall(_ *cobra.Command, args []string) (retErr error) {
 	paths, err := config.ResolvePaths()
 	if err != nil {
 		return err
 	}
+	al := audit.New(paths.AiskDir, "install")
+	al.Log("command.install", "started", map[string]any{
+		"args":         args,
+		"client":       installClient,
+		"scope":        installScope,
+		"include_refs": installIncludeRefs,
+		"dry_run":      installDryRun,
+	}, nil)
+	defer func() {
+		status := "success"
+		if retErr != nil {
+			status = "error"
+		}
+		al.Log("command.install", status, nil, retErr)
+	}()
+
 	cwd, _ := os.Getwd()
 	projectRoot := config.FindProjectRoot(cwd)
 
@@ -127,16 +144,22 @@ func runInstall(_ *cobra.Command, args []string) error {
 
 	// Install to each selected client
 	lock := manifest.NewLock(paths.ManifestDB)
+	al.Log("manifest.lock", "started", map[string]any{"path": paths.ManifestDB + ".lock"}, nil)
 	if err := lock.Acquire(5 * time.Second); err != nil {
+		al.Log("manifest.lock", "error", nil, err)
 		fmt.Fprintf(os.Stderr, "warning: could not acquire lock: %v\n", err)
 	} else {
+		al.Log("manifest.lock", "success", nil, nil)
 		defer lock.Release()
+		defer al.Log("manifest.lock", "released", nil, nil)
 	}
 
 	m, err := manifest.Load(paths.ManifestDB)
 	if err != nil {
+		al.Log("manifest.load", "error", nil, err)
 		return fmt.Errorf("loading manifest: %w", err)
 	}
+	al.Log("manifest.load", "success", map[string]any{"installations": len(m.Installations)}, nil)
 
 	opts := adapter.InstallOpts{
 		Scope:       installScope,
@@ -152,6 +175,15 @@ func runInstall(_ *cobra.Command, args []string) error {
 			progressItems[i].Status = tui.StatusError
 			progressItems[i].Detail = fmt.Sprintf("does not support %s scope", installScope)
 			fmt.Fprintf(os.Stderr, "  %s does not support %s scope, skipping\n", c.Name, installScope)
+			al.LogEvent(audit.Event{
+				Action:   "install.adapter.apply",
+				Status:   "skipped",
+				Skill:    target.Frontmatter.Name,
+				ClientID: string(c.ID),
+				Scope:    installScope,
+				Target:   targetPath,
+				Error:    fmt.Sprintf("client does not support %s scope", installScope),
+			})
 			continue
 		}
 
@@ -159,6 +191,15 @@ func runInstall(_ *cobra.Command, args []string) error {
 		if err != nil {
 			progressItems[i].Status = tui.StatusError
 			fmt.Fprintf(os.Stderr, "  no adapter for %s: %v\n", c.Name, err)
+			al.LogEvent(audit.Event{
+				Action:   "install.adapter.apply",
+				Status:   "error",
+				Skill:    target.Frontmatter.Name,
+				ClientID: string(c.ID),
+				Scope:    installScope,
+				Target:   targetPath,
+				Error:    err.Error(),
+			})
 			continue
 		}
 
@@ -167,14 +208,40 @@ func runInstall(_ *cobra.Command, args []string) error {
 			fmt.Printf("[dry-run] %s: %s\n", c.Name, desc)
 			progressItems[i].Status = tui.StatusDone
 			installed++
+			al.LogEvent(audit.Event{
+				Action:   "install.adapter.apply",
+				Status:   "skipped",
+				Skill:    target.Frontmatter.Name,
+				ClientID: string(c.ID),
+				Scope:    installScope,
+				Target:   targetPath,
+				Details:  map[string]any{"dry_run": true, "description": desc},
+			})
 			continue
 		}
 
 		progressItems[i].Status = tui.StatusActive
+		al.LogEvent(audit.Event{
+			Action:   "install.adapter.apply",
+			Status:   "started",
+			Skill:    target.Frontmatter.Name,
+			ClientID: string(c.ID),
+			Scope:    installScope,
+			Target:   targetPath,
+		})
 		if err := adp.Install(target, targetPath, opts); err != nil {
 			progressItems[i].Status = tui.StatusError
 			progressItems[i].Detail = err.Error()
 			fmt.Fprintf(os.Stderr, "  error installing to %s: %v\n", c.Name, err)
+			al.LogEvent(audit.Event{
+				Action:   "install.adapter.apply",
+				Status:   "error",
+				Skill:    target.Frontmatter.Name,
+				ClientID: string(c.ID),
+				Scope:    installScope,
+				Target:   targetPath,
+				Error:    err.Error(),
+			})
 			continue
 		}
 
@@ -198,17 +265,29 @@ func runInstall(_ *cobra.Command, args []string) error {
 		if installScope == "project" {
 			successfulProjectClients = append(successfulProjectClients, c)
 		}
+		al.LogEvent(audit.Event{
+			Action:   "install.adapter.apply",
+			Status:   "success",
+			Skill:    target.Frontmatter.Name,
+			ClientID: string(c.ID),
+			Scope:    installScope,
+			Target:   targetPath,
+		})
 	}
 
 	if !installDryRun {
 		if err := m.Save(); err != nil {
+			al.Log("manifest.save", "error", nil, err)
 			return fmt.Errorf("saving manifest: %w", err)
 		}
+		al.Log("manifest.save", "success", map[string]any{"installations": len(m.Installations)}, nil)
 	}
 
 	// Manage .gitignore for project-scope installs
 	if installScope == "project" && !installDryRun && len(successfulProjectClients) > 0 {
+		al.Log("gitignore.update", "started", map[string]any{"clients": len(successfulProjectClients)}, nil)
 		manageGitignoreOnInstall(successfulProjectClients)
+		al.Log("gitignore.update", "success", nil, nil)
 	}
 
 	// Print progress summary

@@ -8,6 +8,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
+	"github.com/yorch/aisk/internal/audit"
 	"github.com/yorch/aisk/internal/config"
 	"github.com/yorch/aisk/internal/skill"
 )
@@ -30,16 +31,31 @@ func init() {
 	listCmd.Flags().StringVar(&listRepo, "repo", "", "GitHub repo to fetch from (owner/repo)")
 }
 
-func runList(_ *cobra.Command, _ []string) error {
+func runList(_ *cobra.Command, _ []string) (retErr error) {
 	paths, err := config.ResolvePaths()
 	if err != nil {
 		return err
 	}
+	al := audit.New(paths.AiskDir, "list")
+	al.Log("command.list", "started", map[string]any{
+		"remote": listRemote,
+		"repo":   listRepo,
+		"json":   listJSON,
+	}, nil)
+	defer func() {
+		status := "success"
+		if retErr != nil {
+			status = "error"
+		}
+		al.Log("command.list", status, nil, retErr)
+	}()
 
 	skills, err := skill.ScanLocal(paths.SkillsRepo)
 	if err != nil {
+		al.Log("skill.scan_local", "error", map[string]any{"path": paths.SkillsRepo}, err)
 		return fmt.Errorf("scanning skills: %w", err)
 	}
+	al.Log("skill.scan_local", "success", map[string]any{"path": paths.SkillsRepo, "count": len(skills)}, nil)
 
 	if listRemote {
 		repo := listRepo
@@ -49,15 +65,19 @@ func runList(_ *cobra.Command, _ []string) error {
 		if repo != "" {
 			parts := strings.SplitN(repo, "/", 2)
 			if len(parts) == 2 {
+				al.Log("list.remote.fetch", "started", map[string]any{"repo": repo}, nil)
 				fmt.Fprintf(os.Stderr, "Fetching skills from %s...\n", repo)
 				remote, err := skill.FetchRemoteList(parts[0], parts[1])
 				if err != nil {
+					al.Log("list.remote.fetch", "error", map[string]any{"repo": repo}, err)
 					fmt.Fprintf(os.Stderr, "warning: remote fetch failed: %v\n", err)
 				} else {
 					skills = append(skills, remote...)
+					al.Log("list.remote.fetch", "success", map[string]any{"repo": repo, "count": len(remote)}, nil)
 				}
 			}
 		} else {
+			al.Log("list.remote.fetch", "skipped", map[string]any{"reason": "missing repo"}, nil)
 			fmt.Fprintln(os.Stderr, "hint: set --repo or AISK_REMOTE_REPO to fetch remote skills")
 		}
 	}

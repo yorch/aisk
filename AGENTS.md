@@ -40,6 +40,7 @@ The data flow is: **CLI command → skill discovery → client detection → ada
   - `WindsurfAdapter` — individual `.md` files (project) or appended sections (global)
 - **`internal/manifest`** — JSON file at `~/.aisk/manifest.json` tracking all installations (skill, client, scope, timestamps, paths). Uses file-based locking with stale-lock recovery.
 - **`internal/config`** — Path resolution (`~/.aisk/`, cache dir, skills repo from `AISK_SKILLS_PATH` or cwd) and project-root detection for project-scope behaviors.
+- **`internal/audit`** — Structured JSONL audit logger for command/action events (`~/.aisk/audit.log` by default).
 - **`internal/gitignore`** — Managed `.gitignore` section helpers for project-scope installs/uninstalls.
 - **`internal/tui`** — Bubble Tea interactive components (skill picker, client multi-select, progress display)
 

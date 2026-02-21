@@ -176,8 +176,12 @@ Set `AISK_SKILLS_PATH` to point to your skills repository, or run `aisk` from th
 | `AISK_SKILLS_PATH`   | Local skills repository path       | Current working directory    |
 | `AISK_REMOTE_REPO`   | Default GitHub repo for `--remote` | (none)                       |
 | `GITHUB_TOKEN`       | GitHub API authentication          | (unauthenticated, 60 req/hr) |
+| `AISK_AUDIT_ENABLED` | Enable/disable audit logging       | `true`                       |
+| `AISK_AUDIT_LOG_PATH` | Audit log file path (JSONL)       | `~/.aisk/audit.log`          |
 
 Installation tracking is stored in `~/.aisk/manifest.json`.
+
+Audit logs are written as JSON Lines (`.jsonl`-style) with one event per line, including command/action/status and contextual fields (skill, client, scope, target path, details, error).
 
 ## Development
 

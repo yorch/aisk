@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/yorch/aisk/internal/adapter"
+	"github.com/yorch/aisk/internal/audit"
 	"github.com/yorch/aisk/internal/client"
 	"github.com/yorch/aisk/internal/config"
 	"github.com/yorch/aisk/internal/gitignore"
@@ -29,19 +30,33 @@ func init() {
 	uninstallCmd.Flags().StringVar(&uninstallClient, "client", "", "specific client to uninstall from")
 }
 
-func runUninstall(_ *cobra.Command, args []string) error {
+func runUninstall(_ *cobra.Command, args []string) (retErr error) {
 	paths, err := config.ResolvePaths()
 	if err != nil {
 		return err
 	}
+	al := audit.New(paths.AiskDir, "uninstall")
+	al.Log("command.uninstall", "started", map[string]any{
+		"args":   args,
+		"client": uninstallClient,
+	}, nil)
+	defer func() {
+		status := "success"
+		if retErr != nil {
+			status = "error"
+		}
+		al.Log("command.uninstall", status, nil, retErr)
+	}()
 
 	skillArg := args[0]
 
 	// Load manifest to find installations
 	m, err := manifest.Load(paths.ManifestDB)
 	if err != nil {
+		al.Log("manifest.load", "error", nil, err)
 		return fmt.Errorf("loading manifest: %w", err)
 	}
+	al.Log("manifest.load", "success", map[string]any{"installations": len(m.Installations)}, nil)
 
 	installations := m.Find(skillArg, uninstallClient)
 	if len(installations) == 0 {
@@ -74,10 +89,14 @@ func runUninstall(_ *cobra.Command, args []string) error {
 	}
 
 	lock := manifest.NewLock(paths.ManifestDB)
+	al.Log("manifest.lock", "started", map[string]any{"path": paths.ManifestDB + ".lock"}, nil)
 	if err := lock.Acquire(5 * time.Second); err != nil {
+		al.Log("manifest.lock", "error", nil, err)
 		fmt.Fprintf(os.Stderr, "warning: could not acquire lock: %v\n", err)
 	} else {
+		al.Log("manifest.lock", "success", nil, nil)
 		defer lock.Release()
+		defer al.Log("manifest.lock", "released", nil, nil)
 	}
 
 	for _, inst := range installations {
@@ -85,24 +104,62 @@ func runUninstall(_ *cobra.Command, args []string) error {
 		adp, err := adapter.ForClient(clientID)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "warning: no adapter for %s: %v\n", inst.ClientID, err)
+			al.LogEvent(audit.Event{
+				Action:   "uninstall.adapter.apply",
+				Status:   "error",
+				Skill:    inst.SkillName,
+				ClientID: inst.ClientID,
+				Scope:    inst.Scope,
+				Target:   inst.InstallPath,
+				Error:    err.Error(),
+			})
 			continue
 		}
 
+		al.LogEvent(audit.Event{
+			Action:   "uninstall.adapter.apply",
+			Status:   "started",
+			Skill:    inst.SkillName,
+			ClientID: inst.ClientID,
+			Scope:    inst.Scope,
+			Target:   inst.InstallPath,
+		})
 		if err := adp.Uninstall(stub, inst.InstallPath); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: uninstall from %s: %v\n", inst.ClientID, err)
+			al.LogEvent(audit.Event{
+				Action:   "uninstall.adapter.apply",
+				Status:   "error",
+				Skill:    inst.SkillName,
+				ClientID: inst.ClientID,
+				Scope:    inst.Scope,
+				Target:   inst.InstallPath,
+				Error:    err.Error(),
+			})
 			continue
 		}
 
 		m.Remove(inst.SkillName, inst.ClientID, inst.Scope)
 		fmt.Printf("Uninstalled %q from %s\n", inst.SkillName, inst.ClientID)
+		al.LogEvent(audit.Event{
+			Action:   "uninstall.adapter.apply",
+			Status:   "success",
+			Skill:    inst.SkillName,
+			ClientID: inst.ClientID,
+			Scope:    inst.Scope,
+			Target:   inst.InstallPath,
+		})
 	}
 
 	if err := m.Save(); err != nil {
+		al.Log("manifest.save", "error", nil, err)
 		return fmt.Errorf("saving manifest: %w", err)
 	}
+	al.Log("manifest.save", "success", map[string]any{"installations": len(m.Installations)}, nil)
 
 	// Clean up .gitignore for project-scope uninstalls
+	al.Log("gitignore.cleanup", "started", nil, nil)
 	manageGitignoreOnUninstall(m, installations)
+	al.Log("gitignore.cleanup", "success", nil, nil)
 
 	return nil
 }

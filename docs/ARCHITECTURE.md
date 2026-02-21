@@ -31,6 +31,7 @@ internal/cli
     ├→ client     (NewRegistry, DetectAll, ParseClientID)
     ├→ adapter    (ForClient, InstallOpts)
     ├→ manifest   (Load, Save, Lock, Add/Remove/Find/FindByScope)
+    ├→ audit      (New logger, structured command/action events)
     ├→ gitignore  (EnsureEntries, RemoveEntries)
     └→ tui        (RunSkillSelect, RunClientSelect, PrintProgress, PrintStatusTable, PrintUpdateTable)
 
@@ -47,6 +48,7 @@ internal/manifest   (no internal deps)
 internal/client     (no internal deps)
 internal/skill      (no internal deps)
 internal/config     (no internal deps)
+internal/audit      (no internal deps)
 internal/gitignore  (no internal deps)
 ```
 
@@ -261,6 +263,15 @@ Manages a dedicated `# aisk managed` block in `.gitignore` for project-scope ins
 - `RemoveEntries(path, patterns)` removes patterns and deletes empty managed block
 - `GitignorePatternsForClient(clientID, installPath)` maps clients to expected project artifacts
 
+### `internal/audit`
+
+Structured audit logging for command and sub-action events.
+
+- JSONL output at `~/.aisk/audit.log` by default (override: `AISK_AUDIT_LOG_PATH`)
+- Enable/disable via `AISK_AUDIT_ENABLED` (`true` by default)
+- Non-fatal best-effort writes (audit failures never fail commands)
+- Built-in size-based rotation to a single backup file (`audit.log.1`)
+
 **Locking** (`Lock` type):
 
 - File-based: creates `manifest.json.lock`
@@ -364,6 +375,8 @@ aisk/
 │   │   └── updatetable.go              #   Updates table view
 │   ├── gitignore/
 │   │   └── gitignore.go                #   Managed .gitignore section helpers
+│   ├── audit/
+│   │   └── audit.go                    #   Structured JSONL action logging
 │   └── config/
 │       ├── config.go                    #   Paths, defaults, env vars
 │       └── projectroot.go               #   Project root detection

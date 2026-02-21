@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"github.com/yorch/aisk/internal/audit"
 	"github.com/yorch/aisk/internal/config"
 	"github.com/yorch/aisk/internal/skill"
 )
@@ -21,7 +22,7 @@ func init() {
 	createCmd.Flags().StringVar(&createPath, "path", "", "parent directory for the new skill (default: skills repo path)")
 }
 
-func runCreate(_ *cobra.Command, args []string) error {
+func runCreate(_ *cobra.Command, args []string) (retErr error) {
 	name := args[0]
 
 	parentDir := createPath
@@ -30,13 +31,51 @@ func runCreate(_ *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
+		al := audit.New(paths.AiskDir, "create")
+		al.Log("command.create", "started", map[string]any{
+			"name": name,
+			"path": parentDir,
+		}, nil)
+		defer func() {
+			status := "success"
+			if retErr != nil {
+				status = "error"
+			}
+			al.Log("command.create", status, nil, retErr)
+		}()
 		parentDir = paths.SkillsRepo
+		al.Log("create.parent.resolve", "success", map[string]any{"path": parentDir}, nil)
+		return runCreateWithAudit(name, parentDir, al)
 	}
 
-	skillDir, err := skill.Scaffold(parentDir, name)
+	// createPath explicitly set by user; we still write audit logs to default app dir.
+	paths, err := config.ResolvePaths()
 	if err != nil {
 		return err
 	}
+	al := audit.New(paths.AiskDir, "create")
+	al.Log("command.create", "started", map[string]any{
+		"name": name,
+		"path": parentDir,
+	}, nil)
+	defer func() {
+		status := "success"
+		if retErr != nil {
+			status = "error"
+		}
+		al.Log("command.create", status, nil, retErr)
+	}()
+	al.Log("create.parent.resolve", "success", map[string]any{"path": parentDir}, nil)
+	return runCreateWithAudit(name, parentDir, al)
+}
+
+func runCreateWithAudit(name, parentDir string, al *audit.Logger) error {
+	skillDir, err := skill.Scaffold(parentDir, name)
+	if err != nil {
+		al.Log("create.scaffold", "error", map[string]any{"name": name, "path": parentDir}, err)
+		return err
+	}
+	al.Log("create.scaffold", "success", map[string]any{"name": name, "path": skillDir}, nil)
 
 	fmt.Printf("Created skill %q at %s\n", name, skillDir)
 	fmt.Println("Next steps:")
