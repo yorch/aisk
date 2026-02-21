@@ -122,6 +122,14 @@ Inspect audit events from the local audit log.
 - `--status` filters by event status (`started`, `success`, `error`, `skipped`)
 - `--json` outputs raw event objects
 
+### `aisk audit prune [--keep-days N] [--keep N] [--dry-run]`
+
+Prune and compact audit logs (including rotated backups).
+
+- `--keep-days` defaults to `30` (`0` disables age filtering)
+- `--keep` defaults to `2000` (`0` disables count filtering)
+- `--dry-run` previews removals without writing
+
 ### `aisk create <name> [--path <dir>]`
 
 Scaffold a new skill directory with:

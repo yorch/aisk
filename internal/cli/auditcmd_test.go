@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/yorch/aisk/internal/audit"
 )
@@ -73,5 +74,53 @@ func TestLoadAuditEventsWithBackups(t *testing.T) {
 	}
 	if events[0].Action != "oldest" || events[1].Action != "older" || events[2].Action != "newest" {
 		t.Fatalf("unexpected event order: %+v", events)
+	}
+}
+
+func TestPruneByAge(t *testing.T) {
+	now := time.Now()
+	events := []audit.Event{
+		{Action: "old", Timestamp: now.Add(-40 * 24 * time.Hour).Format(time.RFC3339Nano)},
+		{Action: "new", Timestamp: now.Add(-5 * 24 * time.Hour).Format(time.RFC3339Nano)},
+	}
+	got := pruneByAge(events, 30)
+	if len(got) != 1 || got[0].Action != "new" {
+		t.Fatalf("unexpected prune result: %+v", got)
+	}
+}
+
+func TestRunAuditPrune_DryRun(t *testing.T) {
+	home := t.TempDir()
+	logPath := filepath.Join(t.TempDir(), "audit.log")
+	t.Setenv("HOME", home)
+	t.Setenv("AISK_AUDIT_LOG_PATH", logPath)
+	t.Setenv("AISK_AUDIT_MAX_BACKUPS", "2")
+
+	if err := os.WriteFile(logPath, []byte(`{"timestamp":"2026-01-01T00:00:00Z","action":"a"}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(logPath+".1", []byte(`{"timestamp":"2026-01-02T00:00:00Z","action":"b"}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	origDays, origKeep, origDry := auditPruneKeepDays, auditPruneKeep, auditPruneDryRun
+	t.Cleanup(func() {
+		auditPruneKeepDays, auditPruneKeep, auditPruneDryRun = origDays, origKeep, origDry
+	})
+	auditPruneKeepDays = 0
+	auditPruneKeep = 1
+	auditPruneDryRun = true
+
+	if err := runAuditPrune(nil, nil); err != nil {
+		t.Fatalf("runAuditPrune error: %v", err)
+	}
+
+	events, err := loadAuditEventsWithBackups(logPath)
+	if err != nil {
+		t.Fatalf("reload events: %v", err)
+	}
+	// Dry-run should not mutate files.
+	if len(events) != 2 {
+		t.Fatalf("expected 2 events after dry-run, got %d", len(events))
 	}
 }
