@@ -17,7 +17,7 @@ func TestClaudeAdapter_Install_Symlink(t *testing.T) {
 		Frontmatter: skill.Frontmatter{Name: "test-skill"},
 		DirName:     "test-skill",
 		Path:        srcDir,
-		Source:       skill.SourceLocal,
+		Source:      skill.SourceLocal,
 	}
 
 	targetDir := t.TempDir()
@@ -48,7 +48,7 @@ func TestClaudeAdapter_Install_Copy(t *testing.T) {
 		Frontmatter: skill.Frontmatter{Name: "remote-skill"},
 		DirName:     "remote-skill",
 		Path:        srcDir,
-		Source:       skill.SourceRemote,
+		Source:      skill.SourceRemote,
 	}
 
 	targetDir := t.TempDir()

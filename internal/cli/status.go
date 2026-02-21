@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/yorch/aisk/internal/config"
 	"github.com/yorch/aisk/internal/manifest"
+	"github.com/yorch/aisk/internal/skill"
 	"github.com/yorch/aisk/internal/tui"
 )
 
@@ -17,10 +18,14 @@ var statusCmd = &cobra.Command{
 	RunE:  runStatus,
 }
 
-var statusJSON bool
+var (
+	statusJSON         bool
+	statusCheckUpdates bool
+)
 
 func init() {
 	statusCmd.Flags().BoolVar(&statusJSON, "json", false, "output as JSON")
+	statusCmd.Flags().BoolVar(&statusCheckUpdates, "check-updates", true, "check for available updates")
 }
 
 func runStatus(_ *cobra.Command, _ []string) error {
@@ -47,5 +52,24 @@ func runStatus(_ *cobra.Command, _ []string) error {
 
 	entries := tui.BuildStatusEntries(m)
 	tui.PrintStatusTable(entries)
+
+	// Check for updates
+	if statusCheckUpdates {
+		checkAndPrintUpdates(paths, m)
+	}
+
 	return nil
+}
+
+func checkAndPrintUpdates(paths config.Paths, m *manifest.Manifest) {
+	available, err := skill.ScanLocal(paths.SkillsRepo)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "\nwarning: could not scan skills repo for updates: %v\n", err)
+		return
+	}
+
+	updates := skill.CheckUpdates(m.Installations, available)
+	if len(updates) > 0 {
+		tui.PrintUpdateTable(updates)
+	}
 }

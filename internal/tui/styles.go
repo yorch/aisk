@@ -6,14 +6,14 @@ import (
 
 var (
 	// Colors
-	Purple    = lipgloss.Color("99")
-	Cyan      = lipgloss.Color("86")
-	Green     = lipgloss.Color("42")
-	Yellow    = lipgloss.Color("214")
-	Red       = lipgloss.Color("196")
-	Gray      = lipgloss.Color("245")
-	DarkGray  = lipgloss.Color("239")
-	White     = lipgloss.Color("255")
+	Purple   = lipgloss.Color("99")
+	Cyan     = lipgloss.Color("86")
+	Green    = lipgloss.Color("42")
+	Yellow   = lipgloss.Color("214")
+	Red      = lipgloss.Color("196")
+	Gray     = lipgloss.Color("245")
+	DarkGray = lipgloss.Color("239")
+	White    = lipgloss.Color("255")
 
 	// Title
 	TitleStyle = lipgloss.NewStyle().

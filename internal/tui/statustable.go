@@ -13,8 +13,8 @@ import (
 
 // StatusEntry represents one row in the status table.
 type StatusEntry struct {
-	SkillName    string
-	SkillVersion string
+	SkillName     string
+	SkillVersion  string
 	Installations map[client.ClientID]string // clientID -> installed version
 }
 

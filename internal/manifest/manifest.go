@@ -114,6 +114,17 @@ func (m *Manifest) FindByClient(clientID string) []Installation {
 	return result
 }
 
+// FindByScope returns all installations matching the given scope.
+func (m *Manifest) FindByScope(scope string) []Installation {
+	var result []Installation
+	for _, inst := range m.Installations {
+		if inst.Scope == scope {
+			result = append(result, inst)
+		}
+	}
+	return result
+}
+
 // AllSkillNames returns a deduplicated list of installed skill names.
 func (m *Manifest) AllSkillNames() []string {
 	seen := make(map[string]bool)

@@ -3,12 +3,14 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/yorch/aisk/internal/adapter"
 	"github.com/yorch/aisk/internal/client"
 	"github.com/yorch/aisk/internal/config"
+	"github.com/yorch/aisk/internal/gitignore"
 	"github.com/yorch/aisk/internal/manifest"
 	"github.com/yorch/aisk/internal/skill"
 )
@@ -98,5 +100,60 @@ func runUninstall(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("saving manifest: %w", err)
 	}
 
+	// Clean up .gitignore for project-scope uninstalls
+	manageGitignoreOnUninstall(m, installations)
+
 	return nil
+}
+
+func manageGitignoreOnUninstall(m *manifest.Manifest, removed []manifest.Installation) {
+	// Collect client IDs from removed project-scope installations
+	removedClients := make(map[string]bool)
+	for _, inst := range removed {
+		if inst.Scope == "project" {
+			removedClients[inst.ClientID] = true
+		}
+	}
+	if len(removedClients) == 0 {
+		return
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		return
+	}
+	projectRoot := config.FindProjectRoot(cwd)
+	if projectRoot == "" {
+		return
+	}
+
+	// Check which clients still have project-scope installs
+	remaining := m.FindByScope("project")
+	stillUsed := make(map[string]bool)
+	for _, inst := range remaining {
+		stillUsed[inst.ClientID] = true
+	}
+
+	// Remove patterns for clients that no longer have project-scope installs
+	var patternsToRemove []string
+	for clientID := range removedClients {
+		if !stillUsed[clientID] {
+			patterns := gitignore.GitignorePatternsForClient(clientID, "")
+			patternsToRemove = append(patternsToRemove, patterns...)
+		}
+	}
+
+	if len(patternsToRemove) == 0 {
+		return
+	}
+
+	giPath := filepath.Join(projectRoot, ".gitignore")
+	removedEntries, err := gitignore.RemoveEntries(giPath, patternsToRemove)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: could not update .gitignore: %v\n", err)
+		return
+	}
+	for _, r := range removedEntries {
+		fmt.Printf("Removed %s from .gitignore\n", r)
+	}
 }

@@ -3,12 +3,14 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/yorch/aisk/internal/adapter"
 	"github.com/yorch/aisk/internal/client"
 	"github.com/yorch/aisk/internal/config"
+	"github.com/yorch/aisk/internal/gitignore"
 	"github.com/yorch/aisk/internal/manifest"
 	"github.com/yorch/aisk/internal/skill"
 	"github.com/yorch/aisk/internal/tui"
@@ -193,12 +195,47 @@ func runInstall(_ *cobra.Command, args []string) error {
 		}
 	}
 
+	// Manage .gitignore for project-scope installs
+	if installScope == "project" && !installDryRun && installed > 0 {
+		manageGitignoreOnInstall(targetClients)
+	}
+
 	// Print progress summary
 	fmt.Println()
 	tui.PrintProgress(fmt.Sprintf("Installing %q", target.Frontmatter.Name), progressItems)
 	fmt.Printf("\n%d client(s) done.\n", installed)
 
 	return nil
+}
+
+func manageGitignoreOnInstall(clients []*client.Client) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return
+	}
+	projectRoot := config.FindProjectRoot(cwd)
+	if projectRoot == "" {
+		return
+	}
+
+	var allPatterns []string
+	for _, c := range clients {
+		patterns := gitignore.GitignorePatternsForClient(string(c.ID), c.ProjectPath)
+		allPatterns = append(allPatterns, patterns...)
+	}
+	if len(allPatterns) == 0 {
+		return
+	}
+
+	giPath := filepath.Join(projectRoot, ".gitignore")
+	added, err := gitignore.EnsureEntries(giPath, allPatterns)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: could not update .gitignore: %v\n", err)
+		return
+	}
+	for _, a := range added {
+		fmt.Printf("Added %s to .gitignore\n", a)
+	}
 }
 
 func resolveTargetPath(c *client.Client, scope string) string {

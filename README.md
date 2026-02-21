@@ -15,7 +15,7 @@ go install github.com/yorch/aisk/cmd/aisk@latest
 # Or build locally
 git clone https://github.com/yorch/aisk.git
 cd aisk
-make build
+just build
 ./bin/aisk --version
 ```
 
@@ -146,15 +146,15 @@ Installation tracking is stored in `~/.aisk/manifest.json`.
 ## Development
 
 ```bash
-make build     # Build binary to bin/aisk
-make test      # Run all tests with race detector
-make lint      # Run golangci-lint
-make check     # Format, vet, and test
-make fmt       # Run gofmt
-make vet       # Run go vet
-make snapshot  # GoReleaser snapshot build
-make install   # Build and copy to /usr/local/bin
-make clean     # Remove build artifacts
+just build     # Build binary to bin/aisk
+just test      # Run all tests with race detector
+just lint      # Run golangci-lint
+just check     # Format, vet, and test
+just fmt       # Run gofmt
+just vet       # Run go vet
+just snapshot  # GoReleaser snapshot build
+just install   # Build and copy to /usr/local/bin
+just clean     # Remove build artifacts
 ```
 
 ## License

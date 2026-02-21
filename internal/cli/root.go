@@ -27,4 +27,6 @@ func init() {
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(updateCmd)
 	rootCmd.AddCommand(clientsCmd)
+	rootCmd.AddCommand(createCmd)
+	rootCmd.AddCommand(lintCmd)
 }

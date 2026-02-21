@@ -10,9 +10,9 @@ import (
 
 // ProgressItem represents a single install operation.
 type ProgressItem struct {
-	Label    string
-	Detail   string
-	Status   ProgressStatus
+	Label  string
+	Detail string
+	Status ProgressStatus
 }
 
 // ProgressStatus tracks the state of an operation.
