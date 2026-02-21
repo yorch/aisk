@@ -30,7 +30,7 @@ The data flow is: **CLI command → skill discovery → client detection → ada
 ### Package Responsibilities
 
 - **`cmd/aisk`** — Entrypoint, delegates to `cli.Execute()`
-- **`internal/cli`** — Cobra commands: `install`, `uninstall`, `list`, `update`, `status`, `clients`, `create`, `lint`. Orchestrates the full install pipeline (discover skills → detect clients → pick adapter → install → update manifest).
+- **`internal/cli`** — Cobra commands: `install`, `uninstall`, `list`, `update`, `status`, `clients`, `create`, `lint`, `audit`. Orchestrates the full install pipeline (discover skills → detect clients → pick adapter → install → update manifest).
 - **`internal/skill`** — Skill model and discovery. `ScanLocal()` finds `SKILL.md` files in subdirectories and parses YAML frontmatter. `FetchRemoteList()`/`FetchRemoteSkill()` fetch from GitHub API. `ReadFullContent()` optionally inlines reference files.
 - **`internal/client`** — Client registry and detection. `DetectAll()` checks for config dirs (`~/.claude`, `~/.gemini`, etc.) and binaries in PATH. Each client knows its global/project install paths.
 - **`internal/adapter`** — The `Adapter` interface (`Install`, `Uninstall`, `Describe`) with per-client implementations:

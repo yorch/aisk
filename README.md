@@ -46,6 +46,9 @@ aisk status
 # Skip update checks in status output
 aisk status --check-updates=false
 
+# Inspect recent audit events
+aisk audit --limit 20
+
 # Update all installations
 aisk update
 
@@ -108,6 +111,16 @@ VS Code Copilot  *         (n/a)                         .github/copilot-instruc
 Cursor           *         (n/a)                         .cursor/rules
 Windsurf         *         ~/.codeium/windsurf/...       .windsurf/rules
 ```
+
+### `aisk audit [--limit N] [--run-id <id>] [--action <name>] [--status <value>] [--json]`
+
+Inspect audit events from the local audit log.
+
+- `--limit` defaults to `50` (`0` = all)
+- `--run-id` filters to a single CLI invocation
+- `--action` filters by action key (e.g. `install.adapter.apply`)
+- `--status` filters by event status (`started`, `success`, `error`, `skipped`)
+- `--json` outputs raw event objects
 
 ### `aisk create <name> [--path <dir>]`
 
@@ -178,6 +191,8 @@ Set `AISK_SKILLS_PATH` to point to your skills repository, or run `aisk` from th
 | `GITHUB_TOKEN`       | GitHub API authentication          | (unauthenticated, 60 req/hr) |
 | `AISK_AUDIT_ENABLED` | Enable/disable audit logging       | `true`                       |
 | `AISK_AUDIT_LOG_PATH` | Audit log file path (JSONL)       | `~/.aisk/audit.log`          |
+| `AISK_AUDIT_MAX_SIZE_MB` | Max audit log size before rotation | `5`                     |
+| `AISK_AUDIT_MAX_BACKUPS` | Number of rotated backups (`.1`, `.2`, ...) | `3`         |
 
 Installation tracking is stored in `~/.aisk/manifest.json`.
 

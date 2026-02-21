@@ -4,8 +4,10 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -16,6 +18,7 @@ const (
 )
 
 var maxLogSizeBytes int64 = 5 << 20 // 5 MiB
+var maxBackups = 3
 
 // Event is a single structured audit entry.
 type Event struct {
@@ -146,11 +149,69 @@ func rotateIfNeeded(path string) error {
 		}
 		return err
 	}
-	if info.Size() < maxLogSizeBytes {
+	maxSize := configuredMaxLogSizeBytes()
+	if info.Size() < maxSize {
 		return nil
 	}
 
-	backup := path + ".1"
-	_ = os.Remove(backup)
-	return os.Rename(path, backup)
+	backups := configuredMaxBackups()
+	if backups <= 0 {
+		return os.Remove(path)
+	}
+
+	// Shift older backups up: .2 -> .3, .1 -> .2
+	oldest := backupPath(path, backups)
+	_ = os.Remove(oldest)
+	for i := backups - 1; i >= 1; i-- {
+		src := backupPath(path, i)
+		dst := backupPath(path, i+1)
+		if _, err := os.Stat(src); err == nil {
+			_ = os.Rename(src, dst)
+		}
+	}
+	return os.Rename(path, backupPath(path, 1))
+}
+
+func backupPath(path string, n int) string {
+	return fmt.Sprintf("%s.%d", path, n)
+}
+
+func configuredMaxLogSizeBytes() int64 {
+	v := strings.TrimSpace(os.Getenv("AISK_AUDIT_MAX_SIZE_MB"))
+	if v == "" {
+		return maxLogSizeBytes
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n <= 0 {
+		return maxLogSizeBytes
+	}
+	return int64(n) << 20
+}
+
+func configuredMaxBackups() int {
+	v := strings.TrimSpace(os.Getenv("AISK_AUDIT_MAX_BACKUPS"))
+	if v == "" {
+		return maxBackups
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n < 0 {
+		return maxBackups
+	}
+	return n
+}
+
+// CandidateLogPaths returns existing log files in chronological order.
+func CandidateLogPaths(primary string) []string {
+	backups := configuredMaxBackups()
+	var paths []string
+	for i := backups; i >= 1; i-- {
+		p := backupPath(primary, i)
+		if _, err := os.Stat(p); err == nil {
+			paths = append(paths, p)
+		}
+	}
+	if _, err := os.Stat(primary); err == nil {
+		paths = append(paths, primary)
+	}
+	return paths
 }

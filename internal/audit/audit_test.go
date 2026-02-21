@@ -76,6 +76,53 @@ func TestLoggerRotate(t *testing.T) {
 	}
 }
 
+func TestLoggerRotate_MultipleBackups(t *testing.T) {
+	dir := t.TempDir()
+	logPath := filepath.Join(dir, "audit.log")
+	t.Setenv("AISK_AUDIT_ENABLED", "true")
+	t.Setenv("AISK_AUDIT_LOG_PATH", logPath)
+	t.Setenv("AISK_AUDIT_MAX_BACKUPS", "2")
+
+	oldMax := maxLogSizeBytes
+	maxLogSizeBytes = 16
+	t.Cleanup(func() { maxLogSizeBytes = oldMax })
+
+	if err := os.WriteFile(logPath, []byte("seed-seed-seed-seed"), 0o644); err != nil {
+		t.Fatalf("write seed: %v", err)
+	}
+
+	l := New(filepath.Join(dir, ".aisk"), "install")
+	l.Log("a", "b", nil, nil) // rotate log -> .1
+	if err := os.WriteFile(logPath, []byte("seed-seed-seed-seed"), 0o644); err != nil {
+		t.Fatalf("write seed 2: %v", err)
+	}
+	l.Log("a", "b", nil, nil) // rotate again -> .1, old .1 -> .2
+
+	if _, err := os.Stat(logPath + ".1"); err != nil {
+		t.Fatalf("missing .1: %v", err)
+	}
+	if _, err := os.Stat(logPath + ".2"); err != nil {
+		t.Fatalf("missing .2: %v", err)
+	}
+}
+
+func TestCandidateLogPaths(t *testing.T) {
+	dir := t.TempDir()
+	primary := filepath.Join(dir, "audit.log")
+	t.Setenv("AISK_AUDIT_MAX_BACKUPS", "3")
+	_ = os.WriteFile(primary+".2", []byte("x"), 0o644)
+	_ = os.WriteFile(primary, []byte("x"), 0o644)
+	_ = os.WriteFile(primary+".1", []byte("x"), 0o644)
+
+	paths := CandidateLogPaths(primary)
+	if len(paths) != 3 {
+		t.Fatalf("expected 3 paths, got %d (%v)", len(paths), paths)
+	}
+	if paths[0] != primary+".2" || paths[1] != primary+".1" || paths[2] != primary {
+		t.Fatalf("unexpected path order: %v", paths)
+	}
+}
+
 func splitNonEmptyLines(s string) []string {
 	var out []string
 	start := 0

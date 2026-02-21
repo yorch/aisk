@@ -12,7 +12,7 @@
 ┌──────────────────────▼──────────────────────────────┐
 │                  internal/cli                        │
 │   root · list · install · uninstall · status         │
-│   update · clients · create · lint                   │
+│   update · clients · create · lint · audit           │
 └──┬────┬────┬────┬────┬──────────────────────────────┘
    │    │    │    │    │
    ▼    ▼    ▼    ▼    ▼
@@ -270,7 +270,7 @@ Structured audit logging for command and sub-action events.
 - JSONL output at `~/.aisk/audit.log` by default (override: `AISK_AUDIT_LOG_PATH`)
 - Enable/disable via `AISK_AUDIT_ENABLED` (`true` by default)
 - Non-fatal best-effort writes (audit failures never fail commands)
-- Built-in size-based rotation to a single backup file (`audit.log.1`)
+- Built-in size-based rotation with numbered backups (`audit.log.1`, `.2`, ...), configurable via `AISK_AUDIT_MAX_SIZE_MB` and `AISK_AUDIT_MAX_BACKUPS`
 
 **Locking** (`Lock` type):
 
@@ -313,6 +313,7 @@ Cobra command definitions. The CLI layer orchestrates all other packages.
 | `clients`   | (none)    | `--json`                                             | No                                                         |
 | `create`    | `<name>`  | `--path`                                             | No                                                         |
 | `lint`      | `[path]`  | (none)                                               | No                                                         |
+| `audit`     | (none)    | `--limit`, `--run-id`, `--action`, `--status`, `--json` | No                                                      |
 
 **Install flow:**
 
@@ -345,7 +346,8 @@ aisk/
 │   │   ├── update.go                    #   aisk update
 │   │   ├── clients.go                   #   aisk clients
 │   │   ├── create.go                    #   aisk create
-│   │   └── lint.go                      #   aisk lint
+│   │   ├── lint.go                      #   aisk lint
+│   │   └── auditcmd.go                  #   aisk audit
 │   ├── skill/                           # Skill model & discovery (~550 lines)
 │   │   ├── skill.go                     #   Skill struct, frontmatter parsing
 │   │   ├── local.go                     #   Local filesystem scanner
