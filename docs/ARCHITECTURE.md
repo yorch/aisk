@@ -271,6 +271,7 @@ Structured audit logging for command and sub-action events.
 - Enable/disable via `AISK_AUDIT_ENABLED` (`true` by default)
 - Non-fatal best-effort writes (audit failures never fail commands)
 - Built-in size-based rotation with numbered backups (`audit.log.1`, `.2`, ...), configurable via `AISK_AUDIT_MAX_SIZE_MB` and `AISK_AUDIT_MAX_BACKUPS`
+- Sanitization/redaction runs before write to reduce risk of logging secrets from details/error fields
 
 **Locking** (`Lock` type):
 

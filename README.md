@@ -205,6 +205,7 @@ Set `AISK_SKILLS_PATH` to point to your skills repository, or run `aisk` from th
 Installation tracking is stored in `~/.aisk/manifest.json`.
 
 Audit logs are written as JSON Lines (`.jsonl`-style) with one event per line, including command/action/status and contextual fields (skill, client, scope, target path, details, error).
+Sensitive values in audit payloads are sanitized before write (for example token/secret/password fields and inline bearer/key-value secrets).
 
 ## Development
 

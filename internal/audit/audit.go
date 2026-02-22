@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -19,6 +20,17 @@ const (
 
 var maxLogSizeBytes int64 = 5 << 20 // 5 MiB
 var maxBackups = 3
+
+var sensitiveKeyPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)token`),
+	regexp.MustCompile(`(?i)secret`),
+	regexp.MustCompile(`(?i)password`),
+	regexp.MustCompile(`(?i)authorization`),
+	regexp.MustCompile(`(?i)api[_-]?key`),
+}
+
+var bearerTokenPattern = regexp.MustCompile(`(?i)\b(bearer\s+)[A-Za-z0-9\-\._~\+\/]+=*`)
+var keyValueSecretPattern = regexp.MustCompile(`(?i)\b(token|secret|password|api[_-]?key|authorization)\s*[:=]\s*([^\s,;]+)`)
 
 // Event is a single structured audit entry.
 type Event struct {
@@ -92,7 +104,7 @@ func (l *Logger) LogEvent(e Event) {
 	e.Timestamp = time.Now().UTC().Format(time.RFC3339Nano)
 	e.RunID = l.runID
 	e.Command = l.command
-	e.Error = strings.TrimSpace(e.Error)
+	e = sanitizeEvent(e)
 
 	line, err := json.Marshal(e)
 	if err != nil {
@@ -214,4 +226,57 @@ func CandidateLogPaths(primary string) []string {
 		paths = append(paths, primary)
 	}
 	return paths
+}
+
+func sanitizeEvent(e Event) Event {
+	e.Error = sanitizeString(strings.TrimSpace(e.Error))
+	e.Target = sanitizeString(e.Target)
+	if e.Details != nil {
+		e.Details = sanitizeMap(e.Details)
+	}
+	return e
+}
+
+func sanitizeMap(m map[string]any) map[string]any {
+	out := make(map[string]any, len(m))
+	for k, v := range m {
+		if isSensitiveKey(k) {
+			out[k] = "[REDACTED]"
+			continue
+		}
+		out[k] = sanitizeValue(v)
+	}
+	return out
+}
+
+func sanitizeValue(v any) any {
+	switch t := v.(type) {
+	case string:
+		return sanitizeString(t)
+	case map[string]any:
+		return sanitizeMap(t)
+	case []any:
+		out := make([]any, len(t))
+		for i := range t {
+			out[i] = sanitizeValue(t[i])
+		}
+		return out
+	default:
+		return v
+	}
+}
+
+func isSensitiveKey(k string) bool {
+	for _, p := range sensitiveKeyPatterns {
+		if p.MatchString(k) {
+			return true
+		}
+	}
+	return false
+}
+
+func sanitizeString(s string) string {
+	out := bearerTokenPattern.ReplaceAllString(s, "${1}[REDACTED]")
+	out = keyValueSecretPattern.ReplaceAllString(out, "${1}=[REDACTED]")
+	return out
 }

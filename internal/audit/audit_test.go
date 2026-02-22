@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -120,6 +121,55 @@ func TestCandidateLogPaths(t *testing.T) {
 	}
 	if paths[0] != primary+".2" || paths[1] != primary+".1" || paths[2] != primary {
 		t.Fatalf("unexpected path order: %v", paths)
+	}
+}
+
+func TestSanitizeEvent_RedactsSensitiveDetailsKeys(t *testing.T) {
+	e := Event{
+		Action: "x",
+		Details: map[string]any{
+			"token":      "abc",
+			"api_key":    "k123",
+			"safe":       "ok",
+			"nested_map": map[string]any{"password": "p1", "note": "n1"},
+		},
+	}
+
+	got := sanitizeEvent(e)
+	if got.Details["token"] != "[REDACTED]" {
+		t.Fatalf("expected token to be redacted, got %v", got.Details["token"])
+	}
+	if got.Details["api_key"] != "[REDACTED]" {
+		t.Fatalf("expected api_key to be redacted, got %v", got.Details["api_key"])
+	}
+	if got.Details["safe"] != "ok" {
+		t.Fatalf("expected safe value preserved, got %v", got.Details["safe"])
+	}
+	nested, ok := got.Details["nested_map"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected nested map, got %T", got.Details["nested_map"])
+	}
+	if nested["password"] != "[REDACTED]" {
+		t.Fatalf("expected nested password redacted, got %v", nested["password"])
+	}
+}
+
+func TestSanitizeEvent_RedactsInlineSecrets(t *testing.T) {
+	e := Event{
+		Error:   "Authorization: Bearer abc.def.ghi token=xyz",
+		Details: map[string]any{"message": "api_key: SECRET123"},
+	}
+	got := sanitizeEvent(e)
+
+	if strings.Contains(got.Error, "abc.def.ghi") || strings.Contains(got.Error, "xyz") || strings.Contains(strings.ToLower(got.Error), "secret123") {
+		t.Fatalf("expected secrets removed from error, got %q", got.Error)
+	}
+	if !strings.Contains(got.Error, "[REDACTED]") {
+		t.Fatalf("expected redaction marker in error, got %q", got.Error)
+	}
+	msg, _ := got.Details["message"].(string)
+	if msg != "api_key=[REDACTED]" {
+		t.Fatalf("unexpected sanitized message: %q", msg)
 	}
 }
 
