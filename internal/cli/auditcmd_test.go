@@ -124,3 +124,54 @@ func TestRunAuditPrune_DryRun(t *testing.T) {
 		t.Fatalf("expected 2 events after dry-run, got %d", len(events))
 	}
 }
+
+func TestFilterBySince_Duration(t *testing.T) {
+	now := time.Date(2026, 2, 22, 12, 0, 0, 0, time.UTC)
+	events := []audit.Event{
+		{Action: "old", Timestamp: now.Add(-48 * time.Hour).Format(time.RFC3339Nano)},
+		{Action: "new", Timestamp: now.Add(-2 * time.Hour).Format(time.RFC3339Nano)},
+	}
+
+	got, err := filterBySince(events, "24h", now)
+	if err != nil {
+		t.Fatalf("filterBySince error: %v", err)
+	}
+	if len(got) != 1 || got[0].Action != "new" {
+		t.Fatalf("unexpected since filter result: %+v", got)
+	}
+}
+
+func TestFilterBySince_RFC3339(t *testing.T) {
+	events := []audit.Event{
+		{Action: "a1", Timestamp: "2026-02-20T10:00:00Z"},
+		{Action: "a2", Timestamp: "2026-02-22T10:00:00Z"},
+	}
+	got, err := filterBySince(events, "2026-02-21T00:00:00Z", time.Now())
+	if err != nil {
+		t.Fatalf("filterBySince error: %v", err)
+	}
+	if len(got) != 1 || got[0].Action != "a2" {
+		t.Fatalf("unexpected RFC3339 since filter result: %+v", got)
+	}
+}
+
+func TestComputeAuditStats(t *testing.T) {
+	events := []audit.Event{
+		{Command: "install", Action: "command.install", Status: "success", ClientID: "claude"},
+		{Command: "install", Action: "install.adapter.apply", Status: "success", ClientID: "claude"},
+		{Command: "status", Action: "command.status", Status: "error", ClientID: "cursor"},
+	}
+	stats := computeAuditStats(events)
+	if stats.Total != 3 {
+		t.Fatalf("expected total=3, got %d", stats.Total)
+	}
+	if stats.ByCommand["install"] != 2 || stats.ByCommand["status"] != 1 {
+		t.Fatalf("unexpected ByCommand: %+v", stats.ByCommand)
+	}
+	if stats.ByStatus["success"] != 2 || stats.ByStatus["error"] != 1 {
+		t.Fatalf("unexpected ByStatus: %+v", stats.ByStatus)
+	}
+	if stats.ByClientID["claude"] != 2 || stats.ByClientID["cursor"] != 1 {
+		t.Fatalf("unexpected ByClientID: %+v", stats.ByClientID)
+	}
+}

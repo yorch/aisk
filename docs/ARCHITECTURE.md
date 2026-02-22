@@ -314,7 +314,7 @@ Cobra command definitions. The CLI layer orchestrates all other packages.
 | `clients`   | (none)    | `--json`                                             | No                                                         |
 | `create`    | `<name>`  | `--path`                                             | No                                                         |
 | `lint`      | `[path]`  | (none)                                               | No                                                         |
-| `audit`     | (none)    | `--limit`, `--run-id`, `--action`, `--status`, `--json`; subcommand: `prune` | No                                   |
+| `audit`     | (none)    | `--limit`, `--run-id`, `--action`, `--status`, `--json`; subcommands: `prune`, `stats` | No                           |
 
 **Install flow:**
 

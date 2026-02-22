@@ -130,6 +130,14 @@ Prune and compact audit logs (including rotated backups).
 - `--keep` defaults to `2000` (`0` disables count filtering)
 - `--dry-run` previews removals without writing
 
+### `aisk audit stats [--since <duration|rfc3339>] [--run-id <id>] [--action <name>] [--status <value>] [--json]`
+
+Show aggregate audit counts for matching events.
+
+- `--since` accepts values like `24h` or an RFC3339 timestamp like `2026-02-22T00:00:00Z`
+- `--run-id`, `--action`, `--status` apply the same filters as `aisk audit`
+- `--json` outputs structured aggregate data
+
 ### `aisk create <name> [--path <dir>]`
 
 Scaffold a new skill directory with:

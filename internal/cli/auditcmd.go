@@ -27,6 +27,12 @@ var auditPruneCmd = &cobra.Command{
 	RunE:  runAuditPrune,
 }
 
+var auditStatsCmd = &cobra.Command{
+	Use:   "stats",
+	Short: "Show aggregate statistics for audit events",
+	RunE:  runAuditStats,
+}
+
 var (
 	auditLimit  int
 	auditRunID  string
@@ -37,6 +43,12 @@ var (
 	auditPruneKeepDays int
 	auditPruneKeep     int
 	auditPruneDryRun   bool
+
+	auditStatsRunID  string
+	auditStatsAction string
+	auditStatsStatus string
+	auditStatsSince  string
+	auditStatsJSON   bool
 )
 
 func init() {
@@ -50,6 +62,13 @@ func init() {
 	auditPruneCmd.Flags().IntVar(&auditPruneKeep, "keep", 2000, "keep at most N most recent events after filtering (0 = disable)")
 	auditPruneCmd.Flags().BoolVar(&auditPruneDryRun, "dry-run", false, "preview prune results without writing")
 	auditCmd.AddCommand(auditPruneCmd)
+
+	auditStatsCmd.Flags().StringVar(&auditStatsRunID, "run-id", "", "filter by run ID")
+	auditStatsCmd.Flags().StringVar(&auditStatsAction, "action", "", "filter by action")
+	auditStatsCmd.Flags().StringVar(&auditStatsStatus, "status", "", "filter by status")
+	auditStatsCmd.Flags().StringVar(&auditStatsSince, "since", "", "filter events since duration (e.g. 24h) or RFC3339 timestamp")
+	auditStatsCmd.Flags().BoolVar(&auditStatsJSON, "json", false, "output as JSON")
+	auditCmd.AddCommand(auditStatsCmd)
 }
 
 func runAudit(_ *cobra.Command, _ []string) error {
@@ -128,6 +147,49 @@ func runAuditPrune(_ *cobra.Command, _ []string) error {
 
 	fmt.Printf("Pruned %d event(s); kept %d event(s).\n", removed, len(events))
 	return nil
+}
+
+type auditStats struct {
+	Total      int            `json:"total"`
+	ByCommand  map[string]int `json:"by_command"`
+	ByAction   map[string]int `json:"by_action"`
+	ByStatus   map[string]int `json:"by_status"`
+	ByClientID map[string]int `json:"by_client_id"`
+}
+
+func runAuditStats(_ *cobra.Command, _ []string) error {
+	paths, err := config.ResolvePaths()
+	if err != nil {
+		return err
+	}
+	logPath := resolveAuditLogPath(paths)
+
+	events, err := loadAuditEventsWithBackups(logPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			fmt.Println("No audit events found.")
+			return nil
+		}
+		return fmt.Errorf("reading audit log: %w", err)
+	}
+
+	events = filterAuditEvents(events, auditStatsRunID, auditStatsAction, auditStatsStatus)
+	events, err = filterBySince(events, auditStatsSince, time.Now())
+	if err != nil {
+		return err
+	}
+	if len(events) == 0 {
+		fmt.Println("No audit events found.")
+		return nil
+	}
+
+	stats := computeAuditStats(events)
+	if auditStatsJSON {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(stats)
+	}
+	return printAuditStatsTable(stats)
 }
 
 func loadAuditEventsWithBackups(primary string) ([]audit.Event, error) {
@@ -250,6 +312,38 @@ func pruneByAge(events []audit.Event, keepDays int) []audit.Event {
 	return out
 }
 
+func filterBySince(events []audit.Event, since string, now time.Time) ([]audit.Event, error) {
+	if strings.TrimSpace(since) == "" {
+		return events, nil
+	}
+
+	var cutoff time.Time
+	if d, err := time.ParseDuration(since); err == nil {
+		if d < 0 {
+			d = -d
+		}
+		cutoff = now.Add(-d)
+	} else {
+		t, err := time.Parse(time.RFC3339, since)
+		if err != nil {
+			return nil, fmt.Errorf("invalid --since value %q: use duration (e.g. 24h) or RFC3339", since)
+		}
+		cutoff = t
+	}
+
+	var out []audit.Event
+	for _, e := range events {
+		ts, err := time.Parse(time.RFC3339Nano, e.Timestamp)
+		if err != nil {
+			continue
+		}
+		if ts.After(cutoff) || ts.Equal(cutoff) {
+			out = append(out, e)
+		}
+	}
+	return out, nil
+}
+
 func tailAuditEvents(events []audit.Event, limit int) []audit.Event {
 	if limit <= 0 || len(events) <= limit {
 		return events
@@ -271,6 +365,59 @@ func printAuditEventsTable(events []audit.Event) error {
 		)
 	}
 	return w.Flush()
+}
+
+func computeAuditStats(events []audit.Event) auditStats {
+	s := auditStats{
+		Total:      len(events),
+		ByCommand:  make(map[string]int),
+		ByAction:   make(map[string]int),
+		ByStatus:   make(map[string]int),
+		ByClientID: make(map[string]int),
+	}
+	for _, e := range events {
+		if e.Command != "" {
+			s.ByCommand[e.Command]++
+		}
+		if e.Action != "" {
+			s.ByAction[e.Action]++
+		}
+		if e.Status != "" {
+			s.ByStatus[e.Status]++
+		}
+		if e.ClientID != "" {
+			s.ByClientID[e.ClientID]++
+		}
+	}
+	return s
+}
+
+func printAuditStatsTable(stats auditStats) error {
+	fmt.Printf("TOTAL\t%d\n\n", stats.Total)
+	if err := printCountMap("BY COMMAND", stats.ByCommand); err != nil {
+		return err
+	}
+	if err := printCountMap("BY ACTION", stats.ByAction); err != nil {
+		return err
+	}
+	if err := printCountMap("BY STATUS", stats.ByStatus); err != nil {
+		return err
+	}
+	return printCountMap("BY CLIENT", stats.ByClientID)
+}
+
+func printCountMap(title string, counts map[string]int) error {
+	fmt.Println(title)
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "KEY\tCOUNT")
+	for k, v := range counts {
+		fmt.Fprintf(w, "%s\t%d\n", k, v)
+	}
+	if err := w.Flush(); err != nil {
+		return err
+	}
+	fmt.Println()
+	return nil
 }
 
 func resolveAuditLogPath(paths config.Paths) string {
