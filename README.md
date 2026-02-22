@@ -138,6 +138,23 @@ Show aggregate audit counts for matching events.
 - `--run-id`, `--action`, `--status` apply the same filters as `aisk audit`
 - `--json` outputs structured aggregate data
 
+### `aisk completion [bash|zsh|fish]`
+
+Generate shell completion scripts.
+
+Examples:
+
+```bash
+# bash
+aisk completion bash > /usr/local/etc/bash_completion.d/aisk
+
+# zsh
+aisk completion zsh > "${fpath[1]}/_aisk"
+
+# fish
+aisk completion fish > ~/.config/fish/completions/aisk.fish
+```
+
 ### `aisk create <name> [--path <dir>]`
 
 Scaffold a new skill directory with:

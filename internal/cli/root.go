@@ -30,4 +30,5 @@ func init() {
 	rootCmd.AddCommand(createCmd)
 	rootCmd.AddCommand(lintCmd)
 	rootCmd.AddCommand(auditCmd)
+	rootCmd.AddCommand(completionCmd)
 }

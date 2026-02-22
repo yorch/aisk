@@ -12,7 +12,7 @@
 ┌──────────────────────▼──────────────────────────────┐
 │                  internal/cli                        │
 │   root · list · install · uninstall · status         │
-│   update · clients · create · lint · audit           │
+│   update · clients · create · lint · audit · completion │
 └──┬────┬────┬────┬────┬──────────────────────────────┘
    │    │    │    │    │
    ▼    ▼    ▼    ▼    ▼
@@ -315,6 +315,7 @@ Cobra command definitions. The CLI layer orchestrates all other packages.
 | `create`    | `<name>`  | `--path`                                             | No                                                         |
 | `lint`      | `[path]`  | (none)                                               | No                                                         |
 | `audit`     | (none)    | `--limit`, `--run-id`, `--action`, `--status`, `--json`; subcommands: `prune`, `stats` | No                           |
+| `completion`| `[shell]` | `bash|zsh|fish`                                      | No                                                         |
 
 **Install flow:**
 
@@ -348,7 +349,8 @@ aisk/
 │   │   ├── clients.go                   #   aisk clients
 │   │   ├── create.go                    #   aisk create
 │   │   ├── lint.go                      #   aisk lint
-│   │   └── auditcmd.go                  #   aisk audit
+│   │   ├── auditcmd.go                  #   aisk audit
+│   │   └── completion.go                #   aisk completion
 │   ├── skill/                           # Skill model & discovery (~550 lines)
 │   │   ├── skill.go                     #   Skill struct, frontmatter parsing
 │   │   ├── local.go                     #   Local filesystem scanner
