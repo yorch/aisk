@@ -40,6 +40,9 @@ aisk install 5-whys-skill --client claude
 # Install to multiple clients (interactive TUI picker)
 aisk install 5-whys-skill
 
+# Preview changes before applying
+aisk plan install 5-whys-skill --client claude
+
 # Check what's installed
 aisk status
 
@@ -58,6 +61,10 @@ aisk uninstall 5-whys-skill --client claude
 
 ## Commands
 
+Global flag: `--yes` / `-y` is available on all commands and disables
+interactive prompts. For commands that normally prompt (for example `install`
+and `plan install`), explicit inputs are required when this flag is set.
+
 ### `aisk list [--remote] [--repo <owner/repo>] [--json]`
 
 List available skills from the local repository. Use `--remote` to also fetch from GitHub (requires `--repo` or `AISK_REMOTE_REPO`).
@@ -69,7 +76,7 @@ code-review-excellence      unversioned  code-review-skill       local
 First Principles Thinking   0.2.0        first-principles-skill  local
 ```
 
-### `aisk install [skill] [--client <id>] [--scope global|project] [--include-refs] [--dry-run]`
+### `aisk install [skill] [--client <id>] [--scope global|project] [--include-refs] [--dry-run] [--yes]`
 
 Install a skill to one or more AI clients.
 
@@ -77,6 +84,7 @@ Install a skill to one or more AI clients.
 - **No --client flag**: launches interactive multi-select client picker
 - `--include-refs`: inline reference files (can be large for some skills)
 - `--dry-run`: preview changes without writing
+- `--yes` / `-y`: disable interactive prompts and require explicit `skill` + `--client`
 
 When `--scope project` is used, aisk manages a dedicated section in the project `.gitignore`:
 
@@ -97,6 +105,30 @@ Show installed skills per client in a table view.
 ### `aisk update [skill] [--client <id>]`
 
 Re-install skills with the latest version from the source repository.
+
+### `aisk plan install [skill] [--client <id>] [--scope global|project] [--include-refs] [--yes]`
+
+Preview install operations and target files without writing changes.
+
+- Uses adapter `Describe()` output plus operation classification (create/append/replace)
+- For section-based clients, reports whether a managed section would be created, appended, or replaced
+- `--yes` / `-y` disables pickers and requires explicit `skill` + `--client`
+
+### `aisk plan update [skill] [--client <id>]`
+
+Preview update operations based on manifest entries and current local skill versions.
+
+### `aisk plan uninstall <skill> [--client <id>]`
+
+Preview uninstall operations and the files/sections that would be removed.
+
+### Plan vs Dry-Run
+
+- `install --dry-run` previews the install execution path only. It uses the same
+  install command inputs and adapter descriptions, but does not write changes.
+- `plan` is a dedicated planning surface for `install`, `update`, and
+  `uninstall`. It emphasizes operation intent (create/append/replace/remove)
+  and target paths before any apply command is run.
 
 ### `aisk clients [--json]`
 

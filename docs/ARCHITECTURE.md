@@ -12,7 +12,7 @@
 ┌──────────────────────▼──────────────────────────────┐
 │                  internal/cli                        │
 │   root · list · install · uninstall · status         │
-│   update · clients · create · lint · audit · completion │
+│   update · plan · clients · create · lint · audit · completion │
 └──┬────┬────┬────┬────┬──────────────────────────────┘
    │    │    │    │    │
    ▼    ▼    ▼    ▼    ▼
@@ -304,18 +304,32 @@ Cobra command definitions. The CLI layer orchestrates all other packages.
 
 **Commands:**
 
+Global flag: `--yes` / `-y` is defined on the root command and disables
+interactive prompts. Commands that normally prompt (notably `install` and
+`plan install`) require explicit inputs when this flag is set.
+
 | Command     | Args      | Key Flags                                            | Interactive                                                |
 | ----------- | --------- | ---------------------------------------------------- | ---------------------------------------------------------- |
 | `list`      | (none)    | `--remote`, `--repo`, `--json`                       | No                                                         |
-| `install`   | `[skill]` | `--client`, `--scope`, `--include-refs`, `--dry-run` | Yes — skill picker + client multi-select when args omitted |
+| `install`   | `[skill]` | `--client`, `--scope`, `--include-refs`, `--dry-run`, `--yes` | Yes — skill picker + client multi-select when args omitted |
 | `uninstall` | `<skill>` | `--client`                                           | No                                                         |
 | `status`    | (none)    | `--json`, `--check-updates`                          | No                                                         |
 | `update`    | `[skill]` | `--client`                                           | No                                                         |
+| `plan install` | `[skill]` | `--client`, `--scope`, `--include-refs`, `--yes` | Yes — same picker behavior as install when args/flags omitted |
+| `plan update` | `[skill]` | `--client`                                         | No                                                         |
+| `plan uninstall` | `<skill>` | `--client`                                       | No                                                         |
 | `clients`   | (none)    | `--json`                                             | No                                                         |
 | `create`    | `<name>`  | `--path`                                             | No                                                         |
 | `lint`      | `[path]`  | (none)                                               | No                                                         |
 | `audit`     | (none)    | `--limit`, `--run-id`, `--action`, `--status`, `--json`; subcommands: `prune`, `stats` | No                           |
 | `completion`| `[shell]` | `bash|zsh|fish`                                      | No                                                         |
+
+**Plan vs Dry-Run:**
+
+- `install --dry-run` stays within the install command flow and skips writes
+  while showing adapter description output.
+- `plan` is a separate command family for `plan install`, `plan update`, and
+  `plan uninstall` that previews operation intent and targets.
 
 **Install flow:**
 
@@ -346,6 +360,7 @@ aisk/
 │   │   ├── uninstall.go                 #   aisk uninstall
 │   │   ├── status.go                    #   aisk status
 │   │   ├── update.go                    #   aisk update
+│   │   ├── plan.go                      #   aisk plan (install/update/uninstall preview)
 │   │   ├── clients.go                   #   aisk clients
 │   │   ├── create.go                    #   aisk create
 │   │   ├── lint.go                      #   aisk lint

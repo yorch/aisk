@@ -62,6 +62,10 @@ func runInstall(_ *cobra.Command, args []string) (retErr error) {
 	cwd, _ := os.Getwd()
 	projectRoot := config.FindProjectRoot(cwd)
 
+	if err := validateInstallNonInteractive(args); err != nil {
+		return err
+	}
+
 	// Discover available skills
 	skills, err := skill.ScanLocal(paths.SkillsRepo)
 	if err != nil {
@@ -295,6 +299,19 @@ func runInstall(_ *cobra.Command, args []string) (retErr error) {
 	tui.PrintProgress(fmt.Sprintf("Installing %q", target.Frontmatter.Name), progressItems)
 	fmt.Printf("\n%d client(s) done.\n", installed)
 
+	return nil
+}
+
+func validateInstallNonInteractive(args []string) error {
+	if !assumeYes {
+		return nil
+	}
+	if len(args) == 0 {
+		return fmt.Errorf("skill argument is required when --yes is set")
+	}
+	if installClient == "" {
+		return fmt.Errorf("--client is required when --yes is set")
+	}
 	return nil
 }
 
